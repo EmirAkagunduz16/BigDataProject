@@ -3,12 +3,12 @@ PySpark ile Akademik Makale Kümeleme Modülü
 Bu modül makaleleri PySpark kullanarak kümeler ve analiz eder.
 """
 
+import os
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import Tokenizer, RegexTokenizer, StopWordsRemover, CountVectorizer, IDF, HashingTF
 from pyspark.ml.clustering import KMeans
 from pyspark.ml import Pipeline
 from pyspark.sql.functions import col, udf, regexp_replace, lower, trim, split, size, concat_ws
-from pyspark.sql.types import StringType, IntegerType, ArrayType, DoubleType
 from pyspark.ml.evaluation import ClusteringEvaluator
 
 import pandas as pd
@@ -16,12 +16,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from wordcloud import WordCloud
 
-import re
-from typing import List, Dict, Tuple
+from typing import List
 import nltk
 from nltk.corpus import stopwords
 
@@ -49,10 +46,25 @@ class SparkTextClustering:
         except:
             self.stop_words = set()
         
+        # Set up project directories
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.project_root = os.path.dirname(self.base_dir)
+        self.data_dir = os.path.join(self.project_root, 'data')
+        self.viz_dir = os.path.join(self.project_root, 'visualizations')
+        
+        # Ensure directories exist
+        os.makedirs(self.data_dir, exist_ok=True)
+        os.makedirs(self.viz_dir, exist_ok=True)
+        
         print(f"Spark Session başlatıldı - Version: {self.spark.version}")
+        print(f"Project root: {self.project_root}")
+        print(f"Visualizations dir: {self.viz_dir}")
     
-    def load_data(self, filepath: str):
+    def load_data(self, filepath: str = None):
         """CSV dosyasından veri yükler"""
+        if filepath is None:
+            filepath = os.path.join(self.data_dir, 'arxiv_papers.csv')
+            
         print(f"Veri yükleniyor: {filepath}")
         
         # Pandas ile oku, sonra Spark DataFrame'e çevir
@@ -270,9 +282,79 @@ class SparkTextClustering:
         ax2.grid(True)
         
         plt.tight_layout()
-        plt.savefig('visualizations/optimal_k_analysis.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.viz_dir, 'optimal_k_analysis.png'), dpi=300, bbox_inches='tight')
         plt.show()
     
+    def _generate_cluster_names(self):
+        """Cluster'ları anahtar kelimelerine göre anlamlı isimler verir"""
+        cluster_names = {}
+        
+        for cluster_id, info in self.cluster_analysis.items():
+            top_words = list(info['top_words'].keys())[:3]
+            top_categories = list(info['top_categories'].keys())[:2]
+            
+            # Kategori bazlı isimlendirme
+            category_themes = {
+                'cs.AI': 'Yapay Zeka',
+                'cs.ML': 'Makine Öğrenmesi', 
+                'cs.LG': 'Öğrenme Algoritmaları',
+                'cs.CV': 'Bilgisayarlı Görü',
+                'cs.CL': 'Doğal Dil İşleme',
+                'cs.NE': 'Sinir Ağları',
+                'cs.CR': 'Güvenlik ve Kriptografi',
+                'cs.DB': 'Veritabanları',
+                'cs.IR': 'Bilgi Erişimi',
+                'cs.HC': 'İnsan-Bilgisayar Etkileşimi',
+                'cs.RO': 'Robotik',
+                'cs.SE': 'Yazılım Mühendisliği',
+                'math.ST': 'İstatistik Teorisi',
+                'math.PR': 'Olasılık Teorisi',
+                'math.OC': 'Optimizasyon',
+                'stat.ML': 'İstatistiksel Öğrenme',
+                'stat.ME': 'İstatistik Metodolojisi',
+                'physics.data-an': 'Veri Analizi (Fizik)',
+                'physics.comp-ph': 'Hesaplamalı Fizik',
+                'cond-mat.stat-mech': 'İstatistiksel Mekanik',
+                'q-bio.QM': 'Biyolojik Yöntemler',
+                'q-bio.NC': 'Nörobiyoloji',
+                'econ.EM': 'Ekonometri',
+                'econ.TH': 'Ekonomi Teorisi'
+            }
+            
+            # Ana tema belirle
+            main_category = top_categories[0] if top_categories else 'Genel'
+            theme = category_themes.get(main_category, main_category)
+            
+            # Anahtar kelimeler bazlı alt tema
+            keywords = ', '.join(top_words[:2]).title()
+            
+            # Anlamlı isim oluştur
+            if 'learning' in top_words or 'model' in top_words:
+                if 'cs.CV' in top_categories:
+                    cluster_name = f"{theme} ve Görü Modelleri"
+                elif 'cs.CL' in top_categories or 'cs.NLP' in top_categories:
+                    cluster_name = f"{theme} ve Dil Modelleri"
+                else:
+                    cluster_name = f"{theme} ve Öğrenme"
+            elif 'data' in top_words or 'analysis' in top_words:
+                cluster_name = f"Veri Analizi ({keywords})"
+            elif 'neural' in top_words or 'network' in top_words:
+                cluster_name = f"Sinir Ağları ({theme})"
+            elif any(word in top_words for word in ['optimization', 'algorithm']):
+                cluster_name = f"Algoritmalar ve Optimizasyon"
+            elif any(word in top_words for word in ['statistical', 'probability']):
+                cluster_name = f"İstatistiksel Yöntemler"
+            else:
+                cluster_name = f"{theme} ({keywords})"
+            
+            cluster_names[cluster_id] = {
+                'name': cluster_name,
+                'theme': theme,
+                'keywords': keywords
+            }
+        
+        return cluster_names
+
     def analyze_clusters(self, top_words: int = 10):
         """Kümeleri analiz eder ve anahtar kelimeleri bulur"""
         print("Küme analizi başlıyor...")
@@ -313,11 +395,18 @@ class SparkTextClustering:
                 'sample_titles': sample_titles,
                 'percentage': len(cluster_data) / len(df_pandas) * 100
             }
-            
-            print(f"\n--- KÜME {cluster_id} ---")
-            print(f"Boyut: {len(cluster_data)} makale ({len(cluster_data)/len(df_pandas)*100:.1f}%)")
-            print(f"En yaygın kelimeler: {list(word_freq.head(5).index)}")
-            print(f"En yaygın kategoriler: {list(category_freq.head(3).index)}")
+        
+        # Anlamlı cluster isimleri oluştur
+        self.cluster_names = self._generate_cluster_names()
+        
+        # Sonuçları yazdır
+        for cluster_id, info in self.cluster_analysis.items():
+            cluster_name = self.cluster_names[cluster_id]['name']
+            print(f"\n--- {cluster_name.upper()} (Küme {cluster_id}) ---")
+            print(f"Boyut: {info['size']} makale ({info['percentage']:.1f}%)")
+            print(f"Ana tema: {self.cluster_names[cluster_id]['theme']}")
+            print(f"Anahtar kelimeler: {list(word_freq.head(5).index)}")
+            print(f"Ana kategoriler: {list(category_freq.head(3).index)}")
         
         return self.cluster_analysis
     
@@ -330,38 +419,98 @@ class SparkTextClustering:
             "cluster", "title", "summary", "primary_category"
         ).toPandas()
         
-        # 1. Küme boyutları pasta grafiği
-        fig = px.pie(
-            values=[info['size'] for info in self.cluster_analysis.values()],
-            names=[f"Küme {k}" for k in self.cluster_analysis.keys()],
-            title="Kümelerin Boyut Dağılımı"
+        # Cluster isimlerini DataFrame'e ekle
+        df_pandas['cluster_name'] = df_pandas['cluster'].map(
+            lambda x: self.cluster_names[x]['name'] if hasattr(self, 'cluster_names') else f"Küme {x}"
         )
-        fig.write_html("visualizations/cluster_sizes.html")
+        
+        # 1. Küme boyutları pasta grafiği (anlamlı isimlerle)
+        cluster_labels = []
+        cluster_sizes = []
+        for cluster_id, info in self.cluster_analysis.items():
+            if hasattr(self, 'cluster_names'):
+                label = f"{self.cluster_names[cluster_id]['name']}\n({info['size']} makale)"
+            else:
+                label = f"Küme {cluster_id}\n({info['size']} makale)"
+            cluster_labels.append(label)
+            cluster_sizes.append(info['size'])
+        
+        fig = px.pie(
+            values=cluster_sizes,
+            names=cluster_labels,
+            title="Araştırma Alanlarının Küme Dağılımı",
+            width=800,
+            height=600
+        )
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        fig.write_html(os.path.join(self.viz_dir, 'cluster_sizes.html'))
         fig.show()
         
-        # 2. Kategori dağılımı
-        plt.figure(figsize=(12, 8))
-        category_counts = df_pandas['primary_category'].value_counts().head(15)
-        sns.barplot(x=category_counts.values, y=category_counts.index)
-        plt.title('En Yaygın ArXiv Kategorileri')
-        plt.xlabel('Makale Sayısı')
+        # 2. Kategori dağılımı (Türkçe başlıklar)
+        plt.figure(figsize=(14, 10))
+        category_counts = df_pandas['primary_category'].value_counts().head(20)
+        
+        # Kategori isimlerini Türkçeleştir
+        category_turkish = {
+            'cs.AI': 'Yapay Zeka',
+            'cs.ML': 'Makine Öğrenmesi', 
+            'cs.LG': 'Öğrenme Algoritmaları',
+            'cs.CV': 'Bilgisayarlı Görü',
+            'cs.CL': 'Doğal Dil İşleme',
+            'cs.NE': 'Sinir Ağları',
+            'cs.CR': 'Güvenlik & Kriptografi',
+            'cs.DB': 'Veritabanları',
+            'cs.IR': 'Bilgi Erişimi',
+            'cs.HC': 'İnsan-Bilgisayar Etkileşimi',
+            'cs.RO': 'Robotik',
+            'cs.SE': 'Yazılım Mühendisliği',
+            'math.ST': 'İstatistik Teorisi',
+            'math.PR': 'Olasılık Teorisi',
+            'math.OC': 'Optimizasyon',
+            'stat.ML': 'İstatistiksel Öğrenme',
+            'stat.ME': 'İstatistik Metodolojisi',
+            'physics.data-an': 'Veri Analizi (Fizik)',
+            'physics.comp-ph': 'Hesaplamalı Fizik',
+            'cond-mat.stat-mech': 'İstatistiksel Mekanik',
+            'q-bio.QM': 'Biyolojik Yöntemler',
+            'q-bio.NC': 'Nörobiyoloji',
+            'econ.EM': 'Ekonometri',
+            'econ.TH': 'Ekonomi Teorisi'
+        }
+        
+        turkish_labels = [category_turkish.get(cat, cat) for cat in category_counts.index]
+        
+        bars = plt.barh(range(len(category_counts)), category_counts.values, color='skyblue')
+        plt.yticks(range(len(category_counts)), turkish_labels)
+        plt.xlabel('Makale Sayısı', fontsize=12)
+        plt.title('ArXiv Kategorilerinin Dağılımı', fontsize=14, fontweight='bold')
+        plt.gca().invert_yaxis()
+        
+        # Değerleri çubukların üzerine ekle
+        for i, (bar, value) in enumerate(zip(bars, category_counts.values)):
+            plt.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2, 
+                    str(value), va='center', fontsize=10)
+        
         plt.tight_layout()
-        plt.savefig('visualizations/category_distribution.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.viz_dir, 'category_distribution.png'), dpi=300, bbox_inches='tight')
         plt.show()
         
-        # 3. Küme-kategori ilişkisi
-        cluster_category = pd.crosstab(df_pandas['cluster'], df_pandas['primary_category'])
+        # 3. Küme-kategori ilişkisi (anlamlı isimlerle)
+        cluster_category = pd.crosstab(df_pandas['cluster_name'], df_pandas['primary_category'])
         
-        plt.figure(figsize=(15, 10))
-        sns.heatmap(cluster_category, annot=True, fmt='d', cmap='Blues')
-        plt.title('Küme-Kategori İlişkisi')
-        plt.xlabel('ArXiv Kategorisi')
-        plt.ylabel('Küme')
+        plt.figure(figsize=(16, 10))
+        sns.heatmap(cluster_category, annot=True, fmt='d', cmap='YlOrRd', 
+                   cbar_kws={'label': 'Makale Sayısı'})
+        plt.title('Araştırma Alanları ve ArXiv Kategorileri İlişkisi', fontsize=14, fontweight='bold')
+        plt.xlabel('ArXiv Kategorisi', fontsize=12)
+        plt.ylabel('Araştırma Alanı', fontsize=12)
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
         plt.tight_layout()
-        plt.savefig('visualizations/cluster_category_heatmap.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.viz_dir, 'cluster_category_heatmap.png'), dpi=300, bbox_inches='tight')
         plt.show()
         
-        # 4. Her küme için kelime bulutu
+        # 4. Her küme için kelime bulutu (anlamlı isimlerle)
         self._create_wordclouds(df_pandas)
     
     def _create_wordclouds(self, df_pandas: pd.DataFrame):
@@ -370,7 +519,7 @@ class SparkTextClustering:
         cols = 3
         rows = (n_clusters + cols - 1) // cols
         
-        fig, axes = plt.subplots(rows, cols, figsize=(15, 5*rows))
+        fig, axes = plt.subplots(rows, cols, figsize=(18, 6*rows))
         if rows == 1:
             axes = axes.reshape(1, -1)
         
@@ -380,13 +529,20 @@ class SparkTextClustering:
             
             # Kelime bulutunu oluştur
             wordcloud = WordCloud(
-                width=400, height=300,
+                width=500, height=400,
                 background_color='white',
-                max_words=50
+                max_words=60,
+                colormap='viridis'
             ).generate_from_frequencies(info['top_words'])
             
+            # Anlamlı küme ismi kullan
+            if hasattr(self, 'cluster_names'):
+                title = f'{self.cluster_names[cluster_id]["name"]}\n({info["size"]} makale, %{info["percentage"]:.1f})'
+            else:
+                title = f'Küme {cluster_id}\n({info["size"]} makale)'
+            
             axes[row, col].imshow(wordcloud, interpolation='bilinear')
-            axes[row, col].set_title(f'Küme {cluster_id}\n({info["size"]} makale)')
+            axes[row, col].set_title(title, fontsize=12, fontweight='bold')
             axes[row, col].axis('off')
         
         # Boş subplotları gizle
@@ -395,19 +551,39 @@ class SparkTextClustering:
             col = i % cols
             axes[row, col].axis('off')
         
+        plt.suptitle('Araştırma Alanları - Anahtar Kelime Bulutları', fontsize=16, fontweight='bold')
         plt.tight_layout()
-        plt.savefig('visualizations/cluster_wordclouds.png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(self.viz_dir, 'cluster_wordclouds.png'), dpi=300, bbox_inches='tight')
         plt.show()
     
-    def save_results(self, output_path: str = "data/clustered_papers.csv"):
+    def save_results(self, output_path: str = None):
         """Kümeleme sonuçlarını kaydet"""
+        if output_path is None:
+            output_path = os.path.join(self.data_dir, 'clustered_papers.csv')
+        
         print(f"Sonuçlar kaydediliyor: {output_path}")
         
-        # Spark DataFrame'i Pandas'a çevir ve kaydet
+        # Spark DataFrame'i Pandas'a çevir
         result_df = self.df_clustered.select(
             "id", "title", "summary", "authors", "published", 
             "primary_category", "cluster", "combined_text"
         ).toPandas()
+        
+        # Cluster isimlerini ekle
+        if hasattr(self, 'cluster_names'):
+            result_df['cluster_name'] = result_df['cluster'].map(
+                lambda x: self.cluster_names[x]['name']
+            )
+            result_df['cluster_theme'] = result_df['cluster'].map(
+                lambda x: self.cluster_names[x]['theme']
+            )
+            result_df['cluster_keywords'] = result_df['cluster'].map(
+                lambda x: self.cluster_names[x]['keywords']
+            )
+        else:
+            result_df['cluster_name'] = result_df['cluster'].map(lambda x: f"Küme {x}")
+            result_df['cluster_theme'] = ""
+            result_df['cluster_keywords'] = ""
         
         result_df.to_csv(output_path, index=False)
         print(f"Sonuçlar {output_path} dosyasına kaydedildi")
@@ -426,7 +602,7 @@ def main():
     
     try:
         # 1. Veri yükle
-        df = clustering.load_data("data/arxiv_papers.csv")
+        df = clustering.load_data()
         
         # 2. Metin ön işleme
         df = clustering.preprocess_text()

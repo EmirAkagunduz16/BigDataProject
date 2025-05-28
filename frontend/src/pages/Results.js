@@ -9,6 +9,39 @@ import {
 import { Search as SearchIcon } from '@mui/icons-material';
 import axios from 'axios';
 
+// Kategori çevirisi fonksiyonu
+const translateCategory = (category) => {
+  const categoryTranslations = {
+    'cs.AI': 'Yapay Zeka',
+    'cs.ML': 'Makine Öğrenmesi',
+    'cs.LG': 'Öğrenme Algoritmaları',
+    'cs.CV': 'Bilgisayarlı Görü',
+    'cs.CL': 'Doğal Dil İşleme',
+    'cs.NE': 'Sinir Ağları',
+    'cs.CR': 'Güvenlik & Kriptografi',
+    'cs.DB': 'Veritabanları',
+    'cs.IR': 'Bilgi Erişimi',
+    'cs.HC': 'İnsan-Bilgisayar Etkileşimi',
+    'cs.RO': 'Robotik',
+    'cs.SE': 'Yazılım Mühendisliği',
+    'math.ST': 'İstatistik Teorisi',
+    'math.PR': 'Olasılık Teorisi',
+    'math.OC': 'Optimizasyon',
+    'stat.ML': 'İstatistiksel Öğrenme',
+    'stat.ME': 'İstatistik Metodolojisi',
+    'physics.data-an': 'Veri Analizi (Fizik)',
+    'physics.comp-ph': 'Hesaplamalı Fizik',
+    'cond-mat.stat-mech': 'İstatistiksel Mekanik',
+    'q-bio.QM': 'Biyolojik Yöntemler',
+    'q-bio.NC': 'Nörobiyoloji',
+    'econ.EM': 'Ekonometri',
+    'econ.TH': 'Ekonomi Teorisi',
+    'quant-ph': 'Kuantum Fiziği'
+  };
+  
+  return categoryTranslations[category] || category;
+};
+
 export default function Results() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,7 +64,7 @@ export default function Results() {
         
         // Extract unique categories and clusters
         const uniqueCategories = [...new Set(response.data.papers.map(paper => paper.primary_category))];
-        const uniqueClusters = [...new Set(response.data.papers.map(paper => paper.cluster))];
+        const uniqueClusters = [...new Set(response.data.papers.map(paper => paper.cluster_name || `Küme ${paper.cluster}`))];
         
         setCategories(uniqueCategories);
         setClusters(uniqueClusters);
@@ -50,7 +83,8 @@ export default function Results() {
             authors: 'John Doe, Jane Smith',
             published: '2023-01-01',
             primary_category: 'cs.CL',
-            cluster: 0
+            cluster: 0,
+            cluster_name: 'Doğal Dil İşleme ve Dil Modelleri'
           },
           {
             id: 'arxiv:2301.00002',
@@ -59,7 +93,8 @@ export default function Results() {
             authors: 'Alice Johnson, Bob Brown',
             published: '2023-01-02',
             primary_category: 'cs.LG',
-            cluster: 1
+            cluster: 1,
+            cluster_name: 'Öğrenme Algoritmaları ve Optimizasyon'
           },
           {
             id: 'arxiv:2301.00003',
@@ -68,7 +103,8 @@ export default function Results() {
             authors: 'Charlie Chen, Diana Davis',
             published: '2023-01-03',
             primary_category: 'cs.AI',
-            cluster: 2
+            cluster: 2,
+            cluster_name: 'Yapay Zeka ve Öğrenme'
           },
           {
             id: 'arxiv:2301.00004',
@@ -77,7 +113,8 @@ export default function Results() {
             authors: 'Eva Evans, Frank Foster',
             published: '2023-01-04',
             primary_category: 'cs.CV',
-            cluster: 0
+            cluster: 0,
+            cluster_name: 'Bilgisayarlı Görü ve Görü Modelleri'
           },
           {
             id: 'arxiv:2301.00005',
@@ -86,7 +123,38 @@ export default function Results() {
             authors: 'Grace Green, Henry Hill',
             published: '2023-01-05',
             primary_category: 'cond-mat.stat-mech',
-            cluster: 1
+            cluster: 1,
+            cluster_name: 'İstatistiksel Mekanik'
+          },
+          {
+            id: 'arxiv:2301.00006',
+            title: 'Neural Architecture Search for Efficient Deep Learning Models',
+            summary: 'We propose a novel neural architecture search method...',
+            authors: 'Ivan Ivanov, Julia Johnson',
+            published: '2023-01-06',
+            primary_category: 'cs.LG',
+            cluster: 2,
+            cluster_name: 'Sinir Ağları (Yapay Zeka)'
+          },
+          {
+            id: 'arxiv:2301.00007',
+            title: 'Quantum Machine Learning: A Survey of Recent Advances',
+            summary: 'This survey covers recent developments in quantum machine learning...',
+            authors: 'Kevin Kim, Laura Lee',
+            published: '2023-01-07',
+            primary_category: 'quant-ph',
+            cluster: 3,
+            cluster_name: 'Kuantum Hesaplama'
+          },
+          {
+            id: 'arxiv:2301.00008',
+            title: 'Federated Learning with Differential Privacy: Challenges and Solutions',
+            summary: 'We address the challenges of implementing differential privacy in federated learning...',
+            authors: 'Mike Miller, Nina Nelson',
+            published: '2023-01-08',
+            primary_category: 'cs.CR',
+            cluster: 4,
+            cluster_name: 'Güvenlik ve Kriptografi'
           }
         ];
         
@@ -95,7 +163,7 @@ export default function Results() {
         
         // Extract unique categories and clusters from demo data
         const uniqueCategories = [...new Set(demoPapers.map(paper => paper.primary_category))];
-        const uniqueClusters = [...new Set(demoPapers.map(paper => paper.cluster))];
+        const uniqueClusters = [...new Set(demoPapers.map(paper => paper.cluster_name || `Küme ${paper.cluster}`))];
         
         setCategories(uniqueCategories);
         setClusters(uniqueClusters);
@@ -119,7 +187,7 @@ export default function Results() {
     }
     
     if (filterCluster !== 'all') {
-      filtered = filtered.filter(paper => paper.cluster === parseInt(filterCluster));
+      filtered = filtered.filter(paper => paper.cluster_name === filterCluster || `Küme ${paper.cluster}` === filterCluster);
     }
     
     if (filterCategory !== 'all') {
@@ -211,7 +279,7 @@ export default function Results() {
                     <MenuItem value="all">All Clusters</MenuItem>
                     {clusters.map(cluster => (
                       <MenuItem key={cluster} value={cluster}>
-                        Cluster {cluster}
+                        {cluster}
                       </MenuItem>
                     ))}
                   </Select>
@@ -228,7 +296,7 @@ export default function Results() {
                     <MenuItem value="all">All Categories</MenuItem>
                     {categories.map(category => (
                       <MenuItem key={category} value={category}>
-                        {category}
+                        {translateCategory(category)}
                       </MenuItem>
                     ))}
                   </Select>
@@ -270,11 +338,11 @@ export default function Results() {
                     </TableCell>
                     <TableCell>{paper.authors.split(',')[0]}{paper.authors.split(',').length > 1 ? ' et al.' : ''}</TableCell>
                     <TableCell>
-                      <Chip label={paper.primary_category} size="small" />
+                      <Chip label={translateCategory(paper.primary_category)} size="small" />
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`Cluster ${paper.cluster}`} 
+                        label={paper.cluster_name || `Küme ${paper.cluster}`} 
                         size="small"
                         color={getClusterColor(paper.cluster)}
                       />

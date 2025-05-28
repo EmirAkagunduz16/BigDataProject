@@ -109,6 +109,7 @@ def collect_data():
         data = request.json
         categories = data.get('categories', [])
         max_results = data.get('maxResults', 1000)
+        use_primary_only = data.get('usePrimaryOnly', False)
         
         # Validate input
         if not categories:
@@ -128,10 +129,22 @@ def collect_data():
                 # Initialize collector
                 collector = ArXivDataCollector(max_results=max_results, delay=0.5)
                 
-                update_job_status(job_id, "running", 20, f"Collecting papers from categories: {', '.join(categories)}")
-                
-                # Collect papers
-                df = collector.collect_papers_by_category(categories)
+                if use_primary_only:
+                    update_job_status(job_id, "running", 20, f"Collecting papers with primary category filter from: {', '.join(categories)}")
+                    # Use new method
+                    df = collector.collect_papers_by_primary_category(categories)
+                else:
+                    update_job_status(job_id, "running", 20, f"Collecting papers from categories: {', '.join(categories)}")
+                    # Collect papers
+                    df = collector.collect_papers_by_category(categories)
+                    
+                    update_job_status(job_id, "running", 50, "Filtering by primary categories...")
+                    # Filter by primary categories
+                    original_count = len(df)
+                    df = df[df['primary_category'].isin(categories)]
+                    filtered_count = len(df)
+                    
+                    update_job_status(job_id, "running", 60, f"Filtered {original_count} -> {filtered_count} papers")
                 
                 update_job_status(job_id, "running", 70, "Preprocessing data...")
                 
@@ -144,24 +157,34 @@ def collect_data():
                 output_file = os.path.join(DATA_DIR, 'arxiv_papers.csv')
                 collector.save_data(df_clean, output_file)
                 
-                # Update job status with results
-                update_job_status(
-                    job_id, 
-                    "completed", 
-                    100, 
-                    f"Successfully collected {len(df_clean)} papers",
-                    {
-                        "paperCount": len(df_clean),
-                        "categories": df_clean['primary_category'].value_counts().to_dict()
-                    }
-                )
+                # Generate statistics
+                stats = {
+                    'total_papers': len(df_clean),
+                    'unique_categories': df_clean['primary_category'].nunique(),
+                    'category_distribution': df_clean['primary_category'].value_counts().to_dict(),
+                    'missing_categories': list(set(categories) - set(df_clean['primary_category'].unique()))
+                }
+                
+                update_job_status(job_id, "completed", 100, 
+                    f"Successfully collected {len(df_clean)} papers from {df_clean['primary_category'].nunique()} categories")
+                
+                # Store stats in job status
+                job_statuses[job_id]['stats'] = stats
+                
             except Exception as e:
-                update_job_status(job_id, "failed", 0, f"Error: {str(e)}")
+                update_job_status(job_id, "failed", 0, f"Error during collection: {str(e)}")
         
-        # Start the thread
-        threading.Thread(target=run_collection).start()
+        # Start background thread
+        thread = threading.Thread(target=run_collection)
+        thread.daemon = True
+        thread.start()
         
-        return jsonify({"jobId": job_id})
+        return jsonify({
+            "jobId": job_id,
+            "message": "Data collection started",
+            "usePrimaryOnly": use_primary_only
+        })
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

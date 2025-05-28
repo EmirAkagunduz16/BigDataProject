@@ -25,12 +25,18 @@ export default function Dashboard() {
         
         // Fallback data for demonstration
         setProjectStats({
-          totalPapers: 759,
-          totalClusters: 3,
-          categoriesCount: 15,
-          clusterSizes: [747, 7, 5],
+          totalPapers: 639,
+          totalClusters: 5,
+          categoriesCount: 22,
+          clusterSizes: {
+            0: 417,
+            1: 85, 
+            2: 60,
+            3: 48,
+            4: 29
+          },
           processingStatus: 'completed',
-          lastRun: '2023-05-28 11:54:33'
+          lastRun: '2025-05-28 23:05:01'
         });
       }
     };

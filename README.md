@@ -4,16 +4,19 @@ Bu proje, ArXiv veritabanından toplanan akademik makaleleri içeriklerine göre
 
 ## 🎯 Proje Amacı
 
-- ArXiv'den akademik makaleleri toplamak
-- Makaleleri içeriklerine göre otomatik kümelere ayırmak  
-- Kümeleri görselleştirmek ve analiz etmek
-- Araştırma alanlarını keşfetmek
+- ArXiv'den **dengeli ve çeşitli** akademik makaleleri toplamak
+- Makaleleri içeriklerine göre **anlamlı araştırma alanlarına** göre kümelere ayırmak  
+- Kümeleri **kullanıcı dostu isimlerle** görselleştirmek ve analiz etmek
+- Araştırma alanlarını keşfetmek ve **tematik ilişkileri** ortaya çıkarmak
 - Büyük veri işleme için PySpark'ın gücünden yararlanmak
 
 ## 🛠️ Teknolojiler
 
 - **PySpark**: Büyük veri işleme ve makine öğrenmesi
-- **ArXiv API**: Akademik makale verisi toplama
+- **ArXiv API**: 25+ farklı kategoriden akademik makale verisi toplama
+- **React**: Modern web arayüzü
+- **Material-UI**: Kullanıcı dostu arayüz bileşenleri
+- **Flask**: RESTful API backend
 - **Python**: Ana programlama dili
 - **Matplotlib/Plotly/Seaborn**: Görselleştirme
 - **NLTK**: Doğal dil işleme
@@ -118,18 +121,43 @@ python main.py --cluster --data-file my_data.csv --vocab-size 3000
 
 ## 🔧 ArXiv Kategoriler
 
-Projede varsayılan olarak şu ArXiv kategorileri kullanılır:
+Projede kullanılan **25 farklı ArXiv kategorisi**:
 
-- `cs.AI` - Artificial Intelligence
-- `cs.ML` - Machine Learning  
-- `cs.CV` - Computer Vision
-- `cs.CL` - Natural Language Processing
-- `cs.LG` - Learning
-- `stat.ML` - Machine Learning (Statistics)
-- `physics.data-an` - Data Analysis
-- `q-bio.QM` - Quantitative Methods
-- `econ.EM` - Econometrics
-- `math.ST` - Statistics Theory
+### 💻 Bilgisayar Bilimleri - Temel AI
+- `cs.AI` - Yapay Zeka
+- `cs.ML` - Makine Öğrenmesi
+- `cs.LG` - Öğrenme Algoritmaları
+- `cs.CV` - Bilgisayarlı Görü
+- `cs.CL` - Doğal Dil İşleme
+- `cs.NE` - Sinir Ağları ve Evrimsel Hesaplama
+
+### 🖥️ Bilgisayar Bilimleri - Diğer Alanlar
+- `cs.CR` - Güvenlik ve Kriptografi
+- `cs.DB` - Veritabanları
+- `cs.IR` - Bilgi Erişimi
+- `cs.HC` - İnsan-Bilgisayar Etkileşimi
+- `cs.RO` - Robotik
+- `cs.SE` - Yazılım Mühendisliği
+
+### 📊 Matematik ve İstatistik
+- `math.ST` - İstatistik Teorisi
+- `math.PR` - Olasılık Teorisi
+- `math.OC` - Optimizasyon ve Kontrol
+- `stat.ML` - İstatistiksel Öğrenme
+- `stat.ME` - İstatistik Metodolojisi
+
+### ⚛️ Fizik ve Disiplinlerarası
+- `physics.data-an` - Veri Analizi (Fizik)
+- `physics.comp-ph` - Hesaplamalı Fizik
+- `cond-mat.stat-mech` - İstatistiksel Mekanik
+
+### 🧬 Biyoloji ve Ekonomi
+- `q-bio.QM` - Biyolojik Kantitatif Yöntemler
+- `q-bio.NC` - Nörobiyoloji ve Bilişim
+- `econ.EM` - Ekonometri
+- `econ.TH` - Ekonomi Teorisi
+
+> **Dengeli Veri Toplama**: Her kategoriden minimum bir miktar makale toplanarak kümeleme kalitesi artırılmıştır.
 
 ## 📁 Çıktı Dosyaları
 
@@ -246,3 +274,24 @@ python app.py
 ```
 
 Then access the application at http://localhost:5000
+
+## ✨ Yeni Özellikler (v2.0)
+
+### 🎯 Gelişmiş Veri Toplama
+- **25+ ArXiv kategorisi** desteği (önceden 8)
+- **Dengeli veri toplama** algoritması
+- **Çeşitlilik garantisi** - her kategoriden minimum makale sayısı
+- **Otomatik kategori denge analizi**
+
+### 🧠 Akıllı Kümeleme
+- **Anlamlı küme isimleri**: "Küme 0" yerine "Yapay Zeka ve Dil Modelleri"
+- **Tematik analiz**: Anahtar kelime + kategori bazlı isimlendirme
+- **Türkçe kategoriler**: Kullanıcı dostu kategori isimleri
+- **Gelişmiş görselleştirmeler**: Daha anlaşılır grafikler
+
+### 🌐 Modern Web Arayüzü
+- **React tabanlı** interaktif dashboard
+- **Gerçek zamanlı** veri toplama takibi
+- **Filtrelenebilir** makale listesi
+- **İnteraktif görselleştirmeler**
+- **Türkçe arayüz** desteği

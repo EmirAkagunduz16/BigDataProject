@@ -1,17 +1,17 @@
 AKADEMIK MAKALELERIN KÜMELEME ANALİZİ RAPORU
 ============================================================
-Rapor Tarihi: 2025-05-28 11:54:33
+Rapor Tarihi: 2025-05-28 22:53:49
 
 GENEL BİLGİLER
 ------------------------------
-Toplam Makale Sayısı: 759
+Toplam Makale Sayısı: 639
 Küme Sayısı: 3
 
 KÜME 0
 --------------------
-Boyut: 747 makale (98.4%)
-Ana Anahtar Kelimeler: models, learning, framework, methods, performance, large, language, results, high, time
-Ana Kategoriler: cs.LG, cs.CV, cs.CL, econ.EM, stat.ML
+Boyut: 592 makale (92.6%)
+Ana Anahtar Kelimeler: models, learning, methods, framework, performance, language, large, results, high, llms
+Ana Kategoriler: cs.LG, cs.CL, cs.CV, econ.EM, stat.ML
 Örnek Makaleler:
   1. How does Alignment Enhance LLMs' Multilingual Capabilities? A Language Neurons Perspective
   2. Silence is Not Consensus: Disrupting Agreement Bias in Multi-Agent LLMs via Catfish Agent for Clinical Decision Making
@@ -19,21 +19,19 @@ Ana Kategoriler: cs.LG, cs.CV, cs.CL, econ.EM, stat.ML
 
 KÜME 1
 --------------------
-Boyut: 7 makale (0.9%)
-Ana Anahtar Kelimeler: r, bounds, swap, appearance, o, probability, object, known, m, geometry
-Ana Kategoriler: cs.CV, cs.LG, cond-mat.stat-mech, q-bio.QM, econ.EM
+Boyut: 46 makale (7.2%)
+Ana Anahtar Kelimeler: models, video, reasoning, multi, framework, language, performance, cell, methods, visual
+Ana Kategoriler: cs.CV, cs.LG, q-bio.QM, cs.CL, cs.AI
 Örnek Makaleler:
-  1. Geometry-Editable and Appearance-Preserving Object Compositon
-  2. Improved Bounds for Swap Multicalibration and Swap Omniprediction
-  3. Diffusion with stochastic resetting on a lattice
+  1. LazyVLM: Neuro-Symbolic Approach to Video Analytics
+  2. MME-Reasoning: A Comprehensive Benchmark for Logical Reasoning in MLLMs
+  3. RainFusion: Adaptive Video Generation Acceleration via Multi-Dimensional Visual Redundancy
 
 KÜME 2
 --------------------
-Boyut: 5 makale (0.7%)
-Ana Anahtar Kelimeler: designs, boundary, x, beta, sageattention, treatment, discontinuity, inference, mathrm, score
-Ana Kategoriler: stat.ME, cs.LG, econ.EM, math.ST
+Boyut: 1 makale (0.2%)
+Ana Anahtar Kelimeler: value, uncertainty, uvu, network, rl, uncertainties, universal, errors, offline, functions
+Ana Kategoriler: cs.LG
 Örnek Makaleler:
-  1. SageAttention2++: A More Efficient Implementation of SageAttention2
-  2. rd2d: Causal Inference in Boundary Discontinuity Designs
-  3. Estimation and Inference in Boundary Discontinuity Designs
+  1. Universal Value-Function Uncertainties
 
