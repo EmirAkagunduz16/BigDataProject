@@ -196,4 +196,53 @@ Sorunlarınız için aşağıdaki kontrol listesini takip edin:
 - [ ] Java 8+ yüklü mü?
 - [ ] Virtual environment aktif mi?
 - [ ] requirements.txt yüklendi mi?
-- [ ] İnternet bağlantısı var mı? (ArXiv API için)# BigDataProject
+- [ ] İnternet bağlantısı var mı? (ArXiv API için)
+
+## Web Interface
+
+A modern React web interface has been added to the project to make it easier to interact with the system. The web interface provides:
+
+- Dashboard with project statistics
+- Interactive data collection from ArXiv
+- Configurable clustering options
+- Interactive visualizations
+- Searchable and filterable paper lists
+
+### Running the Web Interface
+
+1. Install the frontend dependencies:
+
+```bash
+cd frontend
+npm install
+```
+
+2. Start the API server:
+
+```bash
+cd api
+python app.py
+```
+
+3. Start the frontend development server:
+
+```bash
+cd frontend
+npm start
+```
+
+4. Open your browser at http://localhost:3000
+
+For production use, you can build the React app and serve it directly from the Flask API:
+
+```bash
+# Build the React app
+cd frontend
+npm run build
+
+# Run the Flask server
+cd api
+python app.py
+```
+
+Then access the application at http://localhost:5000
