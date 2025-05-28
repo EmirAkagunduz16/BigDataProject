@@ -12,6 +12,7 @@ import threading
 import pandas as pd
 from datetime import datetime
 from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask_cors import CORS
 
 # Add the project root to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -20,16 +21,23 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.arxiv_data_collector import ArXivDataCollector
 from src.spark_clustering import SparkTextClustering
 
-app = Flask(__name__, static_folder='../frontend/build')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
+# Flask app setup
+app = Flask(__name__, 
+           static_folder='../frontend/build', 
+           static_url_path='/')
+app.config['SECRET_KEY'] = 'your-secret-key-here'
 
-# Directory paths
-DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-VISUALIZATIONS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'visualizations'))
+# Enable CORS for all routes
+CORS(app, origins=["http://localhost:3000", "http://localhost:5000", "http://127.0.0.1:5000"])
+
+# Directories
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, '..', 'data')
+VISUALIZATIONS_DIR = os.path.join(BASE_DIR, '..', 'visualizations')
 
 # Ensure directories exist
-for directory in [DATA_DIR, VISUALIZATIONS_DIR]:
-    os.makedirs(directory, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(VISUALIZATIONS_DIR, exist_ok=True)
 
 # In-memory job tracking
 active_jobs = {}
@@ -289,18 +297,27 @@ def get_clustered_papers():
 def get_visualizations():
     """Get the visualization URLs"""
     try:
-        # Check if visualizations exist
-        cluster_sizes_html = os.path.join(VISUALIZATIONS_DIR, 'cluster_sizes.html')
-        category_dist_png = os.path.join(VISUALIZATIONS_DIR, 'category_distribution.png')
-        heatmap_png = os.path.join(VISUALIZATIONS_DIR, 'cluster_category_heatmap.png')
-        wordclouds_png = os.path.join(VISUALIZATIONS_DIR, 'cluster_wordclouds.png')
+        # Check if visualizations exist and build URLs
+        visualizations = {}
         
-        # Build URLs
-        visualizations = {
-            "clusterSizesUrl": f"/visualizations/cluster_sizes.html",
-            "categoryDistributionUrl": f"/visualizations/category_distribution.png",
-            "clusterCategoryHeatmapUrl": f"/visualizations/cluster_category_heatmap.png",
-            "wordcloudsUrl": f"/visualizations/cluster_wordclouds.png"
+        # Check each visualization file
+        files_to_check = {
+            "clusterSizesUrl": "cluster_sizes.html",
+            "categoryDistributionUrl": "category_distribution.png", 
+            "clusterCategoryHeatmapUrl": "cluster_category_heatmap.png",
+            "wordcloudsUrl": "cluster_wordclouds.png"
+        }
+        
+        for url_key, filename in files_to_check.items():
+            file_path = os.path.join(VISUALIZATIONS_DIR, filename)
+            if os.path.exists(file_path):
+                visualizations[url_key] = f"/visualizations/{filename}"
+            else:
+                visualizations[url_key] = None
+        
+        # Also return file existence status
+        visualizations["filesExist"] = {
+            key: visualizations[key] is not None for key in files_to_check.keys()
         }
         
         return jsonify(visualizations)
@@ -310,7 +327,19 @@ def get_visualizations():
 @app.route('/visualizations/<path:filename>')
 def serve_visualizations(filename):
     """Serve visualization files"""
-    return send_from_directory(VISUALIZATIONS_DIR, filename)
+    try:
+        file_path = os.path.join(VISUALIZATIONS_DIR, filename)
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File not found"}), 404
+        
+        # Add CORS headers for iframe support
+        response = send_from_directory(VISUALIZATIONS_DIR, filename)
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
+        
+        return response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/download-visualizations', methods=['GET'])
 def download_visualizations():
