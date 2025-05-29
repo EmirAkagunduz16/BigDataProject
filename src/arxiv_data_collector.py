@@ -48,11 +48,10 @@ class ArXivDataCollector:
             'econ.EM', 'econ.TH'
         }
     
-    def _update_progress(self, message: str, percentage: int = None):
+    def _update_progress(self, message: str):
         """İlerleme durumunu günceller"""
         if self.progress_callback:
-            if percentage is None:
-                percentage = min(90, int((self._collected_count / self._total_target) * 70) + 30) if self._total_target > 0 else 30
+            percentage = min(90, int((self._collected_count / self._total_target) * 70) + 30) if self._total_target > 0 else 30
             self.progress_callback(message, percentage)
     
     def _collect_category_batch(self, category: str, target_count: int) -> List[dict]:
@@ -105,7 +104,7 @@ class ArXivDataCollector:
         all_papers = []
         target_per_category = max(10, self.max_results // len(categories))
         
-        self._update_progress(f"Starting collection from {len(categories)} categories", 30)
+        self._update_progress(f"Starting collection from {len(categories)} categories")
         
         with ThreadPoolExecutor(max_workers=min(self.max_workers, len(categories))) as executor:
             future_to_category = {executor.submit(self._collect_category_batch, category, target_per_category): category 
