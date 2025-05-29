@@ -14,6 +14,13 @@ export default function Visualizations() {
   const [iframeError, setIframeError] = useState(false);
   const [projectStats, setProjectStats] = useState(null); // Gerçek veri için
 
+  const tabs = [
+    { label: 'CLUSTER SIZES', icon: '📊' },
+    { label: 'CATEGORY DISTRIBUTION', icon: '📈' },
+    { label: 'CLUSTER-CATEGORY HEATMAP', icon: '🔥' },
+    { label: 'WORD CLOUDS', icon: '☁️' }
+  ];
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -152,7 +159,6 @@ export default function Visualizations() {
           <Tab label="Category Distribution" />
           <Tab label="Cluster-Category Heatmap" />
           <Tab label="Word Clouds" />
-          <Tab label="Error Metrics" />
         </Tabs>
       </Paper>
       
@@ -403,173 +409,6 @@ export default function Visualizations() {
           ) : (
             <Alert severity="info">
               Word clouds not available. Please run clustering analysis first.
-            </Alert>
-          )}
-        </Box>
-      )}
-      
-      {activeTab === 4 && (
-        <Box>
-          <Typography variant="h5" gutterBottom>
-            Hata Metrikleri ve Kalite Analizi
-          </Typography>
-          <Typography variant="body1" paragraph>
-            Kümeleme algoritmasının performansı ve hata analizi.
-          </Typography>
-          
-          {projectStats && projectStats.errorMetrics ? (
-            <Grid container spacing={3}>
-              {/* Overall Quality */}
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Genel Kalite Değerlendirmesi
-                    </Typography>
-                    <Box sx={{ textAlign: 'center', mb: 2 }}>
-                      <Typography variant="h2" sx={{
-                        color: projectStats.errorMetrics.overall_quality_score > 70 ? 'green' :
-                               projectStats.errorMetrics.overall_quality_score > 50 ? 'orange' : 'red'
-                      }}>
-                        {Math.round(projectStats.errorMetrics.overall_quality_score)}%
-                      </Typography>
-                      <Typography variant="h6">
-                        {projectStats.errorMetrics.is_high_quality ? 
-                          'Yüksek Kalite' : 'İyileştirme Gerekli'}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Detailed Metrics */}
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Detaylı Metrikler
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Silhouette Skoru:</strong> {projectStats.errorMetrics.silhouette_score.toFixed(3)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Küme Denge Skoru:</strong> {(projectStats.errorMetrics.cluster_balance_score * 100).toFixed(1)}%
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Ortalama Homojenlik:</strong> {projectStats.errorMetrics.avg_homogeneity.toFixed(1)}%
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Dengesizlik Oranı:</strong> {projectStats.errorMetrics.imbalance_ratio.toFixed(1)}x
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Error Breakdown */}
-              <Grid item xs={12}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Hata Dağılımı
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" color="error">
-                            {projectStats.errorMetrics.outlier_count}
-                          </Typography>
-                          <Typography variant="body2">
-                            Aykırı Değerler
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            (%{projectStats.errorMetrics.outlier_percentage.toFixed(1)})
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" color="warning.main">
-                            {Math.round(projectStats.errorMetrics.category_errors)}
-                          </Typography>
-                          <Typography variant="body2">
-                            Kategori Hataları
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            (%{projectStats.errorMetrics.category_error_rate.toFixed(1)})
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" color="info.main">
-                            {projectStats.errorMetrics.mixed_clusters}
-                          </Typography>
-                          <Typography variant="body2">
-                            Karışık Kümeler
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h4" color="success.main">
-                            {projectStats.errorMetrics.pure_clusters}
-                          </Typography>
-                          <Typography variant="body2">
-                            Saf Kümeler
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Cluster Details */}
-              {projectStats.clusterDetails && (
-                <Grid item xs={12}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Küme Detayları
-                      </Typography>
-                      <Grid container spacing={2}>
-                        {Object.entries(projectStats.clusterDetails).map(([clusterId, details]) => (
-                          <Grid item xs={12} sm={6} md={4} key={clusterId}>
-                            <Card variant="outlined">
-                              <CardContent>
-                                <Typography variant="subtitle1" gutterBottom>
-                                  Küme {clusterId}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Boyut: {details.size} makale
-                                </Typography>
-                                <Typography variant="body2">
-                                  Homojenlik: {details.homogeneity.toFixed(1)}%
-                                </Typography>
-                                <Typography variant="body2">
-                                  Baskın Kategori: {details.dominant_category}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Kategori Çeşitliliği: {details.category_diversity}
-                                </Typography>
-                                {details.outlier_count > 0 && (
-                                  <Typography variant="body2" color="error">
-                                    Aykırı Değerler: {details.outlier_count}
-                                  </Typography>
-                                )}
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              )}
-            </Grid>
-          ) : (
-            <Alert severity="info">
-              Hata metrikleri mevcut değil. Lütfen önce kümeleme analizini çalıştırın.
             </Alert>
           )}
         </Box>
