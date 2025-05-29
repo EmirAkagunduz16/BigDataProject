@@ -6,210 +6,140 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
-// Kategori çevirisi fonksiyonu
+// Kategori çevirisi fonksiyonu - 30 Kategori
 const translateCategory = (category) => {
   const categoryTranslations = {
+    // Computer Science - AI & ML (8 kategori)
     'cs.AI': 'Yapay Zeka',
     'cs.ML': 'Makine Öğrenmesi',
     'cs.LG': 'Öğrenme Algoritmaları',
     'cs.CV': 'Bilgisayarlı Görü',
     'cs.CL': 'Doğal Dil İşleme',
     'cs.NE': 'Sinir Ağları ve Evrimsel Hesaplama',
+    'cs.IR': 'Bilgi Erişimi',
+    'cs.RO': 'Robotik',
+    
+    // Computer Science - Systems (5 kategori)
     'cs.CR': 'Güvenlik ve Kriptografi',
     'cs.DB': 'Veritabanları',
-    'cs.IR': 'Bilgi Erişimi',
-    'cs.HC': 'İnsan-Bilgisayar Etkileşimi',
-    'cs.RO': 'Robotik',
     'cs.SE': 'Yazılım Mühendisliği',
+    'cs.DS': 'Veri Yapıları ve Algoritmalar',
+    'cs.DC': 'Dağıtık ve Paralel Hesaplama',
+    
+    // Mathematics & Statistics (6 kategori)
     'math.ST': 'İstatistik Teorisi',
     'math.PR': 'Olasılık Teorisi',
     'math.OC': 'Optimizasyon ve Kontrol',
+    'math.NA': 'Sayısal Analiz',
     'stat.ML': 'İstatistiksel Öğrenme',
     'stat.ME': 'İstatistik Metodolojisi',
+    
+    // Physics & Engineering (4 kategori)
     'physics.data-an': 'Veri Analizi (Fizik)',
     'physics.comp-ph': 'Hesaplamalı Fizik',
     'cond-mat.stat-mech': 'İstatistiksel Mekanik',
+    'cond-mat.soft': 'Yumuşak Madde Fiziği',
+    
+    // Biology & Medicine (4 kategori)
     'q-bio.QM': 'Biyolojik Kantitatif Yöntemler',
-    'q-bio.NC': 'Nörobiyoloji ve Bilişim',
+    'q-bio.MN': 'Moleküler Ağlar',
+    'q-bio.CB': 'Hücre Biyolojisi',
+    'q-bio.BM': 'Biyomoleküller',
+    
+    // Economics & Social Sciences (3 kategori)
     'econ.EM': 'Ekonometri',
-    'econ.TH': 'Ekonomi Teorisi'
+    'econ.TH': 'Ekonomi Teorisi',
+    'econ.GN': 'Genel Ekonomi'
   };
   
   return categoryTranslations[category] || category;
 };
 
-// Kategori gruplarını tanımla
+// Kategori gruplarını tanımla - 30 Kategori, 6 Ana Grup
 const categoryGroups = {
-  'Bilgisayar Bilimleri - Temel AI & ML': ['cs.AI', 'cs.ML', 'cs.LG', 'cs.CV', 'cs.CL', 'cs.NE', 'cs.IR'],
-  'Bilgisayar Bilimleri - Sistemler & Teori': ['cs.CR', 'cs.DB', 'cs.DC', 'cs.DS', 'cs.HC', 'cs.RO', 'cs.SE', 'cs.SY', 'cs.PL', 'cs.OS', 'cs.AR', 'cs.CC', 'cs.DM', 'cs.FL', 'cs.GT', 'cs.IT', 'cs.LO', 'cs.MA', 'cs.MM', 'cs.MS', 'cs.NA', 'cs.NI', 'cs.OH', 'cs.PF', 'cs.SC', 'cs.SD'],
-  'Matematik & İstatistik - Genişletilmiş': ['math.ST', 'math.PR', 'math.OC', 'math.NA', 'math.AP', 'math.CO', 'math.DG', 'math.DS', 'math.FA', 'math.GM', 'math.GR', 'math.GT', 'math.HO', 'math.IT', 'math.KT', 'math.LO', 'math.MG', 'math.MP', 'math.NT', 'math.QA', 'math.RA', 'math.RT', 'math.SG', 'math.SP', 'stat.ML', 'stat.ME', 'stat.TH', 'stat.AP', 'stat.CO', 'stat.OT'],
-  'Fizik & Disiplinlerarası - Genişletilmiş': ['physics.data-an', 'physics.comp-ph', 'physics.soc-ph', 'physics.bio-ph', 'physics.chem-ph', 'physics.class-ph', 'physics.flu-dyn', 'physics.gen-ph', 'physics.geo-ph', 'physics.hist-ph', 'physics.ins-det', 'physics.med-ph', 'physics.optics', 'physics.plasm-ph', 'physics.pop-ph', 'physics.space-ph', 'cond-mat.dis-nn', 'cond-mat.mes-hall', 'cond-mat.mtrl-sci', 'cond-mat.other', 'cond-mat.quant-gas', 'cond-mat.soft', 'cond-mat.stat-mech', 'cond-mat.str-el', 'cond-mat.supr-con'],
-  'Biyoloji & Yaşam Bilimleri - Genişletilmiş': ['q-bio.BM', 'q-bio.CB', 'q-bio.GN', 'q-bio.MN', 'q-bio.NC', 'q-bio.OT', 'q-bio.PE', 'q-bio.QM', 'q-bio.SC', 'q-bio.TO'],
-  'Ekonomi & Finans - Genişletilmiş': ['econ.EM', 'econ.GN', 'econ.TH', 'q-fin.CP', 'q-fin.EC', 'q-fin.GN', 'q-fin.MF', 'q-fin.PM', 'q-fin.PR', 'q-fin.RM', 'q-fin.ST', 'q-fin.TR'],
-  'Mühendislik & Uygulamalı Bilimler': ['nlin.AO', 'nlin.CD', 'nlin.CG', 'nlin.PS', 'nlin.SI'],
-  'Astrofizik': ['astro-ph.CO', 'astro-ph.EP', 'astro-ph.GA', 'astro-ph.HE', 'astro-ph.IM', 'astro-ph.SR']
+  'Bilgisayar Bilimleri - AI & ML (8 kategori)': ['cs.AI', 'cs.ML', 'cs.LG', 'cs.CV', 'cs.CL', 'cs.NE', 'cs.IR', 'cs.RO'],
+  'Bilgisayar Bilimleri - Sistemler (5 kategori)': ['cs.CR', 'cs.DB', 'cs.SE', 'cs.DS', 'cs.DC'],
+  'Matematik & İstatistik (6 kategori)': ['math.ST', 'math.PR', 'math.OC', 'math.NA', 'stat.ML', 'stat.ME'],
+  'Fizik & Mühendislik (4 kategori)': ['physics.data-an', 'physics.comp-ph', 'cond-mat.stat-mech', 'cond-mat.soft'],
+  'Biyoloji & Tıp (4 kategori)': ['q-bio.QM', 'q-bio.MN', 'q-bio.CB', 'q-bio.BM'],
+  'Ekonomi & Sosyal Bilimler (3 kategori)': ['econ.EM', 'econ.TH', 'econ.GN']
 };
 
 export default function DataCollection() {
   const [maxResults, setMaxResults] = useState(5000);
+  const [selectedCategories, setSelectedCategories] = useState([
+    'cs.AI', 'cs.ML', 'cs.LG', 'cs.CV', 'cs.CL', 'cs.NE', 'cs.IR', 'cs.RO',
+    'math.ST', 'stat.ML', 'physics.data-an'
+  ]);
+  const [usePrimaryOnly, setUsePrimaryOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-  const [usePrimaryOnly, setUsePrimaryOnly] = useState(false);
-  
-  const [categories, setCategories] = useState({
-    // Computer Science - Core AI & ML
-    'cs.AI': true,
-    'cs.ML': true,
-    'cs.LG': true,
-    'cs.CV': true,
-    'cs.CL': true,
-    'cs.NE': true,
-    'cs.IR': true,
-    
-    // Computer Science - Systems & Theory
-    'cs.CR': true,
-    'cs.DB': true,
-    'cs.DC': true,
-    'cs.DS': true,
-    'cs.HC': true,
-    'cs.RO': true,
-    'cs.SE': true,
-    'cs.SY': true,
-    'cs.PL': true,
-    'cs.OS': true,
-    'cs.AR': true,
-    'cs.CC': true,
-    'cs.DM': true,
-    'cs.FL': true,
-    'cs.GT': true,
-    'cs.IT': true,
-    'cs.LO': true,
-    'cs.MA': true,
-    'cs.MM': true,
-    'cs.MS': true,
-    'cs.NA': true,
-    'cs.NI': true,
-    'cs.OH': true,
-    'cs.PF': true,
-    'cs.SC': true,
-    'cs.SD': true,
-    
-    // Mathematics & Statistics - Extended
-    'math.ST': true,
-    'math.PR': true,
-    'math.OC': true,
-    'math.NA': true,
-    'math.AP': true,
-    'math.CO': true,
-    'math.DG': true,
-    'math.DS': true,
-    'math.FA': true,
-    'math.GM': true,
-    'math.GR': true,
-    'math.GT': true,
-    'math.HO': true,
-    'math.IT': true,
-    'math.KT': true,
-    'math.LO': true,
-    'math.MG': true,
-    'math.MP': true,
-    'math.NT': true,
-    'math.QA': true,
-    'math.RA': true,
-    'math.RT': true,
-    'math.SG': true,
-    'math.SP': true,
-    'stat.ML': true,
-    'stat.ME': true,
-    'stat.TH': true,
-    'stat.AP': true,
-    'stat.CO': true,
-    'stat.OT': true,
-    
-    // Physics & Interdisciplinary - Extended
-    'physics.data-an': true,
-    'physics.comp-ph': true,
-    'physics.soc-ph': true,
-    'physics.bio-ph': true,
-    'physics.chem-ph': true,
-    'physics.class-ph': true,
-    'physics.flu-dyn': true,
-    'physics.gen-ph': true,
-    'physics.geo-ph': true,
-    'physics.hist-ph': true,
-    'physics.ins-det': true,
-    'physics.med-ph': true,
-    'physics.optics': true,
-    'physics.plasm-ph': true,
-    'physics.pop-ph': true,
-    'physics.space-ph': true,
-    'cond-mat.dis-nn': true,
-    'cond-mat.mes-hall': true,
-    'cond-mat.mtrl-sci': true,
-    'cond-mat.other': true,
-    'cond-mat.quant-gas': true,
-    'cond-mat.soft': true,
-    'cond-mat.stat-mech': true,
-    'cond-mat.str-el': true,
-    'cond-mat.supr-con': true,
-    
-    // Biology & Life Sciences - Extended
-    'q-bio.BM': true,
-    'q-bio.CB': true,
-    'q-bio.GN': true,
-    'q-bio.MN': true,
-    'q-bio.NC': true,
-    'q-bio.OT': true,
-    'q-bio.PE': true,
-    'q-bio.QM': true,
-    'q-bio.SC': true,
-    'q-bio.TO': true,
-    
-    // Economics & Finance - Extended
-    'econ.EM': true,
-    'econ.GN': true,
-    'econ.TH': true,
-    'q-fin.CP': true,
-    'q-fin.EC': true,
-    'q-fin.GN': true,
-    'q-fin.MF': true,
-    'q-fin.PM': true,
-    'q-fin.PR': true,
-    'q-fin.RM': true,
-    'q-fin.ST': true,
-    'q-fin.TR': true,
-    
-    // Engineering & Applied Sciences
-    'nlin.AO': true,
-    'nlin.CD': true,
-    'nlin.CG': true,
-    'nlin.PS': true,
-    'nlin.SI': true,
-    
-    // Astrophysics
-    'astro-ph.CO': true,
-    'astro-ph.EP': true,
-    'astro-ph.GA': true,
-    'astro-ph.HE': true,
-    'astro-ph.IM': true,
-    'astro-ph.SR': true
-  });
+  const [jobId, setJobId] = useState(null);
 
-  const handleCategoryChange = (event) => {
-    setCategories({
-      ...categories,
-      [event.target.name]: event.target.checked,
-    });
+  // Kategori seçenekleri
+  const availableCategories = {
+    'Computer Science': [
+      { value: 'cs.AI', label: 'Yapay Zeka (AI)' },
+      { value: 'cs.ML', label: 'Makine Öğrenmesi (ML)' },
+      { value: 'cs.LG', label: 'Öğrenme Algoritmaları (LG)' },
+      { value: 'cs.CV', label: 'Bilgisayarlı Görü (CV)' },
+      { value: 'cs.CL', label: 'Doğal Dil İşleme (CL)' },
+      { value: 'cs.NE', label: 'Sinir Ağları (NE)' },
+      { value: 'cs.IR', label: 'Bilgi Erişimi (IR)' },
+      { value: 'cs.RO', label: 'Robotik (RO)' },
+      { value: 'cs.CR', label: 'Kriptografi (CR)' },
+      { value: 'cs.DB', label: 'Veritabanları (DB)' },
+      { value: 'cs.SE', label: 'Yazılım Mühendisliği (SE)' },
+      { value: 'cs.DS', label: 'Veri Yapıları (DS)' }
+    ],
+    'Mathematics & Statistics': [
+      { value: 'math.ST', label: 'İstatistik Teorisi' },
+      { value: 'math.PR', label: 'Olasılık Teorisi' },
+      { value: 'math.OC', label: 'Optimizasyon' },
+      { value: 'stat.ML', label: 'İstatistiksel Öğrenme' },
+      { value: 'stat.ME', label: 'İstatistik Metodolojisi' },
+      { value: 'stat.AP', label: 'Uygulamalı İstatistik' }
+    ],
+    'Physics & Others': [
+      { value: 'physics.data-an', label: 'Veri Analizi (Fizik)' },
+      { value: 'physics.comp-ph', label: 'Hesaplamalı Fizik' },
+      { value: 'econ.EM', label: 'Ekonometri' },
+      { value: 'econ.TH', label: 'Ekonomi Teorisi' }
+    ]
+  };
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const handleSelectAllInGroup = (groupCategories) => {
+    const allSelected = groupCategories.every(cat => selectedCategories.includes(cat.value));
+    if (allSelected) {
+      // Deselect all in this group
+      setSelectedCategories(prev => prev.filter(c => !groupCategories.some(cat => cat.value === c)));
+    } else {
+      // Select all in this group
+      const newCategories = groupCategories.map(cat => cat.value);
+      setSelectedCategories(prev => [...new Set([...prev, ...newCategories])]);
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     
-    // Get selected categories
-    const selectedCategories = Object.keys(categories).filter(cat => categories[cat]);
+    // Debug logging
+    console.log('=== DATA COLLECTION DEBUG ===');
+    console.log('Selected categories:', selectedCategories);
+    console.log('Max results:', maxResults);
+    console.log('Use primary only:', usePrimaryOnly);
+    console.log('============================');
     
     if (selectedCategories.length === 0) {
       setError('Please select at least one category');
@@ -223,23 +153,33 @@ export default function DataCollection() {
     setStatusMessage('Starting data collection process...');
     
     try {
-      // Start the data collection process
-      const response = await axios.post('/api/collect-data', {
+      // Prepare request data
+      const requestData = {
         categories: selectedCategories,
         maxResults,
         usePrimaryOnly
-      });
+      };
+      
+      console.log('Sending request data:', requestData);
+      
+      // Start the data collection process
+      const response = await axios.post('/api/collect-data', requestData);
+      
+      console.log('Response received:', response.data);
       
       const jobId = response.data.jobId;
+      setJobId(jobId);
       
       // Poll for job status
       const statusInterval = setInterval(async () => {
         try {
           const statusResponse = await axios.get(`/api/job-status/${jobId}`);
-          const { status, progressPercent, message, stats } = statusResponse.data;
+          const { status, progressPercent, message, result } = statusResponse.data;
           
           setProgress(progressPercent);
           setStatusMessage(message);
+          
+          console.log('Job status update:', { status, progressPercent, message });
           
           if (status === 'completed') {
             setLoading(false);
@@ -247,11 +187,11 @@ export default function DataCollection() {
             clearInterval(statusInterval);
             
             // Show collection statistics
-            if (stats) {
+            if (result) {
               setStatusMessage(
-                `Successfully collected ${stats.total_papers} papers from ${stats.unique_categories} categories` +
-                (stats.missing_categories.length > 0 ? 
-                  `. Missing categories: ${stats.missing_categories.join(', ')}` : '')
+                `Successfully collected ${result.total_papers} papers from ${result.unique_categories} categories` +
+                (result.missing_categories && result.missing_categories.length > 0 ? 
+                  `. Missing categories: ${result.missing_categories.join(', ')}` : '')
               );
             }
           } else if (status === 'failed') {
@@ -261,17 +201,16 @@ export default function DataCollection() {
           }
         } catch (err) {
           console.error('Error checking job status:', err);
-          setLoading(false);
-          setError('Failed to check job status');
-          clearInterval(statusInterval);
-          
-          // For demo purposes, simulate success after 3 seconds
-          setTimeout(() => {
-            setSuccess(true);
-            setStatusMessage('Successfully collected papers from ArXiv');
-          }, 3000);
+          // Don't immediately fail - retry a few times
+          const retryCount = (err.retryCount || 0) + 1;
+          if (retryCount > 5) {
+            setLoading(false);
+            setError('Lost connection to server. Please refresh and try again.');
+            clearInterval(statusInterval);
+          }
+          err.retryCount = retryCount;
         }
-      }, 2000);
+      }, 1000); // Reduced from 2000ms to 1000ms for better responsiveness
       
     } catch (err) {
       console.error('Error starting data collection:', err);
@@ -336,34 +275,48 @@ export default function DataCollection() {
               <Typography variant="subtitle1" gutterBottom>
                 ArXiv Kategorileri
               </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Toplamak istediğiniz makale kategorilerini seçin. Her grup için tümünü seç/kaldır butonları kullanabilirsiniz.
+              </Typography>
               <FormControl component="fieldset">
                 <FormGroup>
-                  {Object.entries(categoryGroups).map(([groupName, categoryList]) => (
-                    <Box key={groupName} sx={{ mb: 2 }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
-                        {groupName}
-                      </Typography>
+                  {Object.entries(availableCategories).map(([groupName, categoryList]) => (
+                    <Box key={groupName} sx={{ mb: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="subtitle2" color="primary" sx={{ flexGrow: 1 }}>
+                          {groupName}
+                        </Typography>
+                        <Button
+                          size="small"
+                          onClick={() => handleSelectAllInGroup(categoryList)}
+                          sx={{ ml: 2 }}
+                        >
+                          {categoryList.every(cat => selectedCategories.includes(cat.value)) ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+                        </Button>
+                      </Box>
                       <Grid container>
                         {categoryList.map((category) => (
-                          <Grid item xs={12} sm={6} md={4} key={category}>
+                          <Grid item xs={12} sm={6} md={4} key={category.value}>
                             <FormControlLabel
                               control={
                                 <Checkbox
-                                  checked={categories[category] || false}
-                                  onChange={handleCategoryChange}
-                                  name={category}
+                                  checked={selectedCategories.includes(category.value)}
+                                  onChange={() => handleCategoryChange(category.value)}
                                 />
                               }
-                              label={translateCategory(category)}
+                              label={category.label}
                             />
                           </Grid>
                         ))}
                       </Grid>
-                      {groupName !== 'Biyoloji ve Ekonomi' && <Divider sx={{ mt: 1 }} />}
+                      <Divider sx={{ mt: 1 }} />
                     </Box>
                   ))}
                 </FormGroup>
               </FormControl>
+              <Typography variant="body2" color="text.secondary">
+                Seçili kategoriler: {selectedCategories.length} / {Object.values(availableCategories).flat().length}
+              </Typography>
             </Grid>
             
             <Grid item xs={12}>

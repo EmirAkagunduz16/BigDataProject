@@ -9,7 +9,7 @@ import {
 import { Search as SearchIcon } from '@mui/icons-material';
 import axios from 'axios';
 
-// Kategori çevirisi fonksiyonu
+// Kategori çevirisi fonksiyonu - 25 Kategori
 const translateCategory = (category) => {
   const categoryTranslations = {
     'cs.AI': 'Yapay Zeka',
@@ -18,25 +18,25 @@ const translateCategory = (category) => {
     'cs.CV': 'Bilgisayarlı Görü',
     'cs.CL': 'Doğal Dil İşleme',
     'cs.NE': 'Sinir Ağları',
+    'cs.IR': 'Bilgi Erişimi',
+    'cs.RO': 'Robotik',
     'cs.CR': 'Güvenlik & Kriptografi',
     'cs.DB': 'Veritabanları',
-    'cs.IR': 'Bilgi Erişimi',
-    'cs.HC': 'İnsan-Bilgisayar Etkileşimi',
-    'cs.RO': 'Robotik',
     'cs.SE': 'Yazılım Mühendisliği',
+    'cs.DS': 'Veri Yapıları ve Algoritmalar',
     'math.ST': 'İstatistik Teorisi',
     'math.PR': 'Olasılık Teorisi',
     'math.OC': 'Optimizasyon',
     'stat.ML': 'İstatistiksel Öğrenme',
     'stat.ME': 'İstatistik Metodolojisi',
+    'stat.AP': 'Uygulamalı İstatistik',
     'physics.data-an': 'Veri Analizi (Fizik)',
     'physics.comp-ph': 'Hesaplamalı Fizik',
     'cond-mat.stat-mech': 'İstatistiksel Mekanik',
+    'cond-mat.soft': 'Yumuşak Madde Fiziği',
     'q-bio.QM': 'Biyolojik Yöntemler',
-    'q-bio.NC': 'Nörobiyoloji',
     'econ.EM': 'Ekonometri',
-    'econ.TH': 'Ekonomi Teorisi',
-    'quant-ph': 'Kuantum Fiziği'
+    'econ.TH': 'Ekonomi Teorisi'
   };
   
   return categoryTranslations[category] || category;
@@ -48,23 +48,51 @@ export default function Results() {
   const [papers, setPapers] = useState([]);
   const [filteredPapers, setFilteredPapers] = useState([]);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCluster, setFilterCluster] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [categories, setCategories] = useState([]);
   const [clusters, setClusters] = useState([]);
+  const [totalPapers, setTotalPapers] = useState(0);
+  const [apiPage, setApiPage] = useState(1);
 
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const response = await axios.get('/api/clustered-papers');
-        setPapers(response.data.papers);
-        setFilteredPapers(response.data.papers);
+        // Fetch all papers by making multiple API calls if needed
+        let allPapers = [];
+        let currentPage = 1;
+        let totalFetched = 0;
+        let totalCount = 0;
+        
+        do {
+          const response = await axios.get('/api/clustered-papers', {
+            params: {
+              page: currentPage,
+              per_page: 500, // Fetch more per request
+              search: '',
+              cluster: null
+            }
+          });
+          
+          if (response.data.papers) {
+            allPapers = [...allPapers, ...response.data.papers];
+            totalFetched += response.data.papers.length;
+            totalCount = response.data.pagination?.total || 0;
+            currentPage++;
+          } else {
+            break;
+          }
+        } while (totalFetched < totalCount && totalFetched > 0);
+        
+        setPapers(allPapers);
+        setFilteredPapers(allPapers);
+        setTotalPapers(totalCount);
         
         // Extract unique categories and clusters
-        const uniqueCategories = [...new Set(response.data.papers.map(paper => paper.primary_category))];
-        const uniqueClusters = [...new Set(response.data.papers.map(paper => paper.cluster_name || `Küme ${paper.cluster}`))];
+        const uniqueCategories = [...new Set(allPapers.map(paper => paper.primary_category))];
+        const uniqueClusters = [...new Set(allPapers.map(paper => paper.cluster_name || `Küme ${paper.cluster}`))];
         
         setCategories(uniqueCategories);
         setClusters(uniqueClusters);

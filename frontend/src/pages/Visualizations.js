@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Typography, Paper, Card, CardContent, 
   CardHeader, CircularProgress, Box, Tabs, Tab,
-  Button, Alert
+  Button, Alert, Grid
 } from '@mui/material';
 import axios from 'axios';
 
@@ -152,6 +152,7 @@ export default function Visualizations() {
           <Tab label="Category Distribution" />
           <Tab label="Cluster-Category Heatmap" />
           <Tab label="Word Clouds" />
+          <Tab label="Error Metrics" />
         </Tabs>
       </Paper>
       
@@ -338,7 +339,6 @@ export default function Visualizations() {
                 }
                 
                 const categoryCount = projectStats.categoriesCount;
-                const totalPapers = projectStats.totalPapers;
                 
                 let analysisText = `Veri setinde toplam ${categoryCount} farklı ArXiv kategorisi bulunmaktadır. `;
                 
@@ -359,105 +359,220 @@ export default function Visualizations() {
         </Card>
       )}
       
-      {activeTab === 2 && visualizations && (
-        <Card>
-          <CardHeader title="Cluster-Category Relationship" />
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Bu ısı haritası, kümeler ve ArXiv kategorileri arasındaki ilişkiyi gösterir.
-              Her hücre, belirli bir küme ve belirli bir kategoriye ait makale sayısını temsil eder.
-              Koyu renkler daha fazla makale sayısını, açık renkler daha az makale sayısını gösterir.
-              En yaygın 15 kategori görselleştirilmiştir.
-            </Typography>
-            
-            <Box 
-              component="img"
-              src={visualizations.clusterCategoryHeatmapUrl}
-              alt="Cluster-Category Heatmap"
-              sx={{ 
-                width: '100%',
-                maxHeight: '600px',
-                objectFit: 'contain',
-                border: '1px solid #eee',
-                borderRadius: 2,
-                mb: 2
-              }}
-            />
-            
-            <Typography variant="body2">
-              <strong>Analiz:</strong> {(() => {
-                if (!projectStats || !projectStats.clusterSizes) {
-                  return "Küme-kategori analizi verisi yükleniyor...";
-                }
-                
-                const clusterCount = projectStats.totalClusters;
-                const categoryCount = projectStats.categoriesCount;
-                
-                let analysisText = `${clusterCount} küme ve ${categoryCount} kategori arasındaki ilişki analiz edilmiştir. `;
-                
-                if (clusterCount <= 3) {
-                  analysisText += "Az sayıda küme, araştırma alanlarının genel kategorilerde toplandığını göstermektedir. ";
-                } else if (clusterCount <= 6) {
-                  analysisText += "Orta düzeyde küme sayısı, araştırma alanlarının dengeli bir şekilde uzmanlaştığını göstermektedir. ";
-                } else {
-                  analysisText += "Çok sayıda küme, araştırma alanlarının yüksek düzeyde uzmanlaştığını göstermektedir. ";
-                }
-                
-                analysisText += "Kümeleme algoritması hem genel hem de nişleşmiş araştırma alanlarını başarıyla tanımlamıştır. ";
-                analysisText += "Isı haritasında görülen dağılım, her kümenin belirli kategorilerde yoğunlaştığını ve bazı kümelerin disiplinlerarası yaklaşım sergilediğini göstermektedir.";
-                
-                return analysisText;
-              })()}
-            </Typography>
-          </CardContent>
-        </Card>
+      {activeTab === 2 && (
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Cluster-Category Heatmap
+          </Typography>
+          <Typography variant="body1" paragraph>
+            Bu ısı haritası, kümeler ile ArXiv kategorileri arasındaki ilişkiyi gösteriyor.
+            Koyu renkler o küme-kategori kombinasyonunda daha fazla makale olduğunu gösterir.
+          </Typography>
+          {visualizations.clusterCategoryHeatmapUrl ? (
+            <Box sx={{ textAlign: 'center' }}>
+              <img 
+                src={visualizations.clusterCategoryHeatmapUrl} 
+                alt="Cluster-Category Heatmap" 
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+            </Box>
+          ) : (
+            <Alert severity="info">
+              Cluster-category heatmap not available. Please run clustering analysis first.
+            </Alert>
+          )}
+        </Box>
       )}
       
-      {activeTab === 3 && visualizations && (
-        <Card>
-          <CardHeader title="Cluster Word Clouds" />
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Bu kelime bulutları, her kümedeki en sık geçen terimleri gösterir.
-              Her kelimenin boyutu, o keligenin küme içindeki sıklığını ve önemini temsil eder.
-              Kelime bulutları, kümelerin tematik odak noktalarını anlamada yardımcı olur.
-            </Typography>
-            
-            <Box 
-              component="img"
-              src={visualizations.wordcloudsUrl}
-              alt="Cluster Word Clouds"
-              sx={{ 
-                width: '100%',
-                maxHeight: '600px',
-                objectFit: 'contain',
-                border: '1px solid #eee',
-                borderRadius: 2,
-                mb: 2
-              }}
-            />
-            
-            <Typography variant="body2">
-              <strong>Analiz:</strong> {(() => {
-                if (!projectStats || !projectStats.totalClusters) {
-                  return "Kelime bulutu analizi verisi yükleniyor...";
-                }
-                
-                const clusterCount = projectStats.totalClusters;
-                
-                let analysisText = `${clusterCount} küme için kelime bulutları oluşturulmuştur. `;
-                
-                analysisText += "Her kümenin kendine özgü anahtar kelimeleri bulunmaktadır. ";
-                analysisText += "Kelime bulutlarında \"model\", \"learning\", \"data\" gibi genel terimler yanında, ";
-                analysisText += "her kümenin uzmanlaştığı alana özgü teknik terimler de görülmektedir. ";
-                analysisText += "Bu durum, kümeleme algoritmasının başarılı bir şekilde farklı araştırma alt-alanlarını ";
-                analysisText += "birbirinden ayırt ettiğini ve her kümenin belirgin tematik bir odağa sahip olduğunu göstermektedir.";
-                
-                return analysisText;
-              })()}
-            </Typography>
-          </CardContent>
-        </Card>
+      {activeTab === 3 && (
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Word Clouds
+          </Typography>
+          <Typography variant="body1" paragraph>
+            Bu kelime bulutları, her kümede en sık kullanılan anahtar kelimeleri görselleştiriyor.
+          </Typography>
+          {visualizations.wordcloudsUrl ? (
+            <Box sx={{ textAlign: 'center' }}>
+              <img 
+                src={visualizations.wordcloudsUrl} 
+                alt="Word Clouds" 
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+            </Box>
+          ) : (
+            <Alert severity="info">
+              Word clouds not available. Please run clustering analysis first.
+            </Alert>
+          )}
+        </Box>
+      )}
+      
+      {activeTab === 4 && (
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Hata Metrikleri ve Kalite Analizi
+          </Typography>
+          <Typography variant="body1" paragraph>
+            Kümeleme algoritmasının performansı ve hata analizi.
+          </Typography>
+          
+          {projectStats && projectStats.errorMetrics ? (
+            <Grid container spacing={3}>
+              {/* Overall Quality */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Genel Kalite Değerlendirmesi
+                    </Typography>
+                    <Box sx={{ textAlign: 'center', mb: 2 }}>
+                      <Typography variant="h2" sx={{
+                        color: projectStats.errorMetrics.overall_quality_score > 70 ? 'green' :
+                               projectStats.errorMetrics.overall_quality_score > 50 ? 'orange' : 'red'
+                      }}>
+                        {Math.round(projectStats.errorMetrics.overall_quality_score)}%
+                      </Typography>
+                      <Typography variant="h6">
+                        {projectStats.errorMetrics.is_high_quality ? 
+                          'Yüksek Kalite' : 'İyileştirme Gerekli'}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Detailed Metrics */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Detaylı Metrikler
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Silhouette Skoru:</strong> {projectStats.errorMetrics.silhouette_score.toFixed(3)}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Küme Denge Skoru:</strong> {(projectStats.errorMetrics.cluster_balance_score * 100).toFixed(1)}%
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Ortalama Homojenlik:</strong> {projectStats.errorMetrics.avg_homogeneity.toFixed(1)}%
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Dengesizlik Oranı:</strong> {projectStats.errorMetrics.imbalance_ratio.toFixed(1)}x
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Error Breakdown */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Hata Dağılımı
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" color="error">
+                            {projectStats.errorMetrics.outlier_count}
+                          </Typography>
+                          <Typography variant="body2">
+                            Aykırı Değerler
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            (%{projectStats.errorMetrics.outlier_percentage.toFixed(1)})
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" color="warning.main">
+                            {Math.round(projectStats.errorMetrics.category_errors)}
+                          </Typography>
+                          <Typography variant="body2">
+                            Kategori Hataları
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            (%{projectStats.errorMetrics.category_error_rate.toFixed(1)})
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" color="info.main">
+                            {projectStats.errorMetrics.mixed_clusters}
+                          </Typography>
+                          <Typography variant="body2">
+                            Karışık Kümeler
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Typography variant="h4" color="success.main">
+                            {projectStats.errorMetrics.pure_clusters}
+                          </Typography>
+                          <Typography variant="body2">
+                            Saf Kümeler
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Cluster Details */}
+              {projectStats.clusterDetails && (
+                <Grid item xs={12}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Küme Detayları
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {Object.entries(projectStats.clusterDetails).map(([clusterId, details]) => (
+                          <Grid item xs={12} sm={6} md={4} key={clusterId}>
+                            <Card variant="outlined">
+                              <CardContent>
+                                <Typography variant="subtitle1" gutterBottom>
+                                  Küme {clusterId}
+                                </Typography>
+                                <Typography variant="body2">
+                                  Boyut: {details.size} makale
+                                </Typography>
+                                <Typography variant="body2">
+                                  Homojenlik: {details.homogeneity.toFixed(1)}%
+                                </Typography>
+                                <Typography variant="body2">
+                                  Baskın Kategori: {details.dominant_category}
+                                </Typography>
+                                <Typography variant="body2">
+                                  Kategori Çeşitliliği: {details.category_diversity}
+                                </Typography>
+                                {details.outlier_count > 0 && (
+                                  <Typography variant="body2" color="error">
+                                    Aykırı Değerler: {details.outlier_count}
+                                  </Typography>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+            </Grid>
+          ) : (
+            <Alert severity="info">
+              Hata metrikleri mevcut değil. Lütfen önce kümeleme analizini çalıştırın.
+            </Alert>
+          )}
+        </Box>
       )}
       
       <Box display="flex" justifyContent="center" mt={3}>
