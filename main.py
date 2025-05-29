@@ -166,7 +166,8 @@ def collect_data(categories=None, max_results=3000, output_file="data/arxiv_pape
             'astro-ph.SR', # Solar and Stellar Astrophysics
         ]
     
-    collector = ArXivDataCollector(max_results=max_results, delay=0.3)
+    # Initialize optimized data collector
+    collector = ArXivDataCollector(max_results=max_results, delay=0.1, max_workers=4)
     
     print(f"Kategoriler ({len(categories)} adet): {categories}")
     print(f"Maksimum toplam makale sayısı: {max_results}")
@@ -218,77 +219,70 @@ def collect_data(categories=None, max_results=3000, output_file="data/arxiv_pape
     
     return output_file
 
-def perform_clustering(data_file="data/arxiv_papers.csv", k_range=None, vocab_size=5000):
-    """PySpark ile kümeleme yap"""
+def perform_clustering(data_file="data/arxiv_papers.csv", k_range=None, vocab_size=3000):
+    """Kümeleme işlemini yapar - Optimized"""
     print("\n" + "="*50)
-    print("KÜMELEME AŞAMASI")
+    print("⚡ HIZLANDIRILMIŞ KÜMELEME BAŞLIYOR")
     print("="*50)
     
-    if k_range is None:
-        k_range = range(3, 11)
-    
+    # Spark clustering sınıfını başlat
     clustering = SparkTextClustering()
     
     try:
         # 1. Veri yükle
-        print("1. Veri yükleniyor...")
+        print("📊 Veri yükleniyor...")
         df = clustering.load_data(data_file)
         
         # 2. Metin ön işleme
-        print("2. Metin ön işleme...")
+        print("🔄 Metin ön işleme...")
         df = clustering.preprocess_text(['title', 'summary'])
         
-        # 3. Özellik çıkarma (TF-IDF)
-        print("3. TF-IDF özellik çıkarma...")
-        df_features = clustering.create_features(
-            vocab_size=vocab_size, 
-            min_df=2
-        )
+        # 3. Özellik çıkarma - Optimize edilmiş
+        print("🔍 TF-IDF özellik çıkarma...")
+        df_features = clustering.create_features(vocab_size=vocab_size, min_df=2)
         
-        # 4. Optimal k bulma
-        print("4. Optimal k değeri bulunuyor...")
-        optimal_k, costs, silhouette_scores = clustering.find_optimal_k(
-            k_range=k_range, 
-            iterations=50
-        )
+        # 4. Kümeleme
+        if k_range:
+            print(f"🎯 Optimal k bulunuyor: {k_range}")
+            optimal_k, costs, silhouette_scores = clustering.find_optimal_k(
+                k_range=range(k_range[0], k_range[1] + 1), 
+                iterations=30  # Reduced from 50
+            )
+        else:
+            optimal_k = 5  # Default optimized value
+            print(f"🎯 Varsayılan k kullanılıyor: {optimal_k}")
         
-        # 5. En iyi k ile kümeleme
-        print(f"5. K-means kümeleme (k={optimal_k})...")
-        df_clustered = clustering.perform_clustering(
-            k=optimal_k, 
-            max_iterations=100
-        )
+        # 5. En iyi k ile kümeleme - Optimized
+        print(f"⚡ K-means kümeleme (k={optimal_k})...")
+        df_clustered = clustering.perform_clustering(k=optimal_k, max_iterations=50)
         
         # 6. Küme analizi
-        print("6. Küme analizi...")
-        cluster_analysis = clustering.analyze_clusters(top_words=15)
+        print("📈 Küme analizi...")
+        cluster_analysis = clustering.analyze_clusters(top_words=10)  # Reduced from 15
         
         # 7. Görselleştirmeler
-        print("7. Görselleştirmeler oluşturuluyor...")
+        print("🎨 Görselleştirmeler oluşturuluyor...")
         clustering.create_visualizations()
         
         # 8. Sonuçları kaydet
-        print("8. Sonuçlar kaydediliyor...")
+        print("💾 Sonuçlar kaydediliyor...")
         result_df = clustering.save_results()
         
-        # Özet bilgiler
         print("\n" + "="*50)
-        print("KÜMELEME SONUÇLARI")
+        print("✅ KÜMELEME BAŞARIYLA TAMAMLANDI!")
         print("="*50)
-        print(f"Toplam makale: {len(result_df)}")
-        print(f"Küme sayısı: {optimal_k}")
-        print(f"Silhouette Score: {clustering.silhouette_score:.4f}")
+        print(f"📊 Toplam makale: {len(result_df)}")
+        print(f"🎯 Küme sayısı: {optimal_k}")
+        print(f"📈 Silhouette Score: {clustering.silhouette_score:.4f}")
+        print(f"🎨 Görselleştirmeler: visualizations/ klasöründe")
         
-        # Her küme için özet
-        for cluster_id, info in cluster_analysis.items():
-            print(f"\nKüme {cluster_id}:")
-            print(f"  - Boyut: {info['size']} makale ({info['percentage']:.1f}%)")
-            print(f"  - Ana kelimeler: {list(info['top_words'].keys())[:5]}")
-            print(f"  - Ana kategoriler: {list(info['top_categories'].keys())[:3]}")
+        return result_df
         
-        return result_df, cluster_analysis
-        
+    except Exception as e:
+        print(f"❌ Kümeleme hatası: {str(e)}")
+        raise
     finally:
+        # Spark'ı durdur
         clustering.stop_spark()
 
 def generate_report(cluster_analysis, output_file="akademik_makaleler_raporu.txt"):
@@ -330,8 +324,8 @@ def main():
                        help='Tüm pipeline\'ı çalıştır')
     parser.add_argument('--max-results', type=int, default=5000,
                        help='Maksimum makale sayısı (default: 5000)')
-    parser.add_argument('--vocab-size', type=int, default=5000,
-                       help='TF-IDF kelime dağarcığı boyutu (default: 5000)')
+    parser.add_argument('--vocab-size', type=int, default=3000,
+                       help='TF-IDF kelime dağarcığı boyutu (default: 3000)')
     parser.add_argument('--data-file', type=str, default='data/arxiv_papers.csv',
                        help='Veri dosyası yolu')
     parser.add_argument('--use-primary-only', action='store_true',
@@ -364,7 +358,7 @@ def main():
     
     if args.full_pipeline or args.cluster:
         # Kümeleme
-        result_df, cluster_analysis = perform_clustering(
+        result_df = perform_clustering(
             data_file=data_file,
             vocab_size=args.vocab_size
         )

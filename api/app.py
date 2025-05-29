@@ -126,8 +126,8 @@ def collect_data():
             try:
                 update_job_status(job_id, "running", 10, "Setting up ArXiv collector...")
                 
-                # Initialize collector
-                collector = ArXivDataCollector(max_results=max_results, delay=0.5)
+                # Initialize collector with optimized settings
+                collector = ArXivDataCollector(max_results=max_results, delay=0.1, max_workers=4)
                 
                 if use_primary_only:
                     update_job_status(job_id, "running", 20, f"Collecting papers with primary category filter from: {', '.join(categories)}")
@@ -169,7 +169,7 @@ def collect_data():
                     f"Successfully collected {len(df_clean)} papers from {df_clean['primary_category'].nunique()} categories")
                 
                 # Store stats in job status
-                job_statuses[job_id]['stats'] = stats
+                active_jobs[job_id]['stats'] = stats
                 
             except Exception as e:
                 update_job_status(job_id, "failed", 0, f"Error during collection: {str(e)}")
@@ -232,9 +232,9 @@ def perform_clustering():
                     update_job_status(job_id, "running", 30, "Preprocessing text...")
                     df = clustering.preprocess_text(['title', 'summary'])
                     
-                    # Feature extraction
+                    # Feature extraction with optimized vocab size
                     update_job_status(job_id, "running", 40, "Extracting TF-IDF features...")
-                    df_features = clustering.create_features(vocab_size=vocab_size, min_df=2)
+                    df_features = clustering.create_features(vocab_size=min(vocab_size, 3000), min_df=2)
                     
                     # Find optimal k or use specific k
                     if k_range_list:
@@ -246,11 +246,11 @@ def perform_clustering():
                     else:
                         optimal_k = specific_k
                     
-                    # Perform clustering
+                    # Perform clustering with optimized parameters
                     update_job_status(job_id, "running", 70, f"Performing K-means clustering with k={optimal_k}...")
                     df_clustered = clustering.perform_clustering(
                         k=optimal_k, 
-                        max_iterations=100
+                        max_iterations=50  # Reduced from 100
                     )
                     
                     # Analyze clusters

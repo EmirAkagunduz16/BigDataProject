@@ -1,6 +1,6 @@
 """
-ArXiv Veri Toplama Modülü
-Bu modül ArXiv API'sini kullanarak akademik makaleleri toplar.
+ArXiv Veri Toplama Modülü - Optimized Version
+Bu modül ArXiv API'sini kullanarak akademik makaleleri hızlı bir şekilde toplar.
 """
 
 import arxiv
@@ -8,46 +8,48 @@ import pandas as pd
 import time
 import re
 from typing import List
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 class ArXivDataCollector:
-    """ArXiv'den akademik makale verisi toplayan sınıf"""
+    """ArXiv'den akademik makale verisi toplayan sınıf - Optimized"""
     
-    def __init__(self, max_results: int = 1000, delay: float = 1.0):
+    def __init__(self, max_results: int = 1000, delay: float = 0.1, max_workers: int = 4):
         """
         Args:
             max_results: Toplanacak maksimum makale sayısı
-            delay: API istekleri arasındaki bekleme süresi (saniye)
+            delay: API istekleri arasındaki bekleme süresi (saniye) - azaltıldı
+            max_workers: Paralel thread sayısı
         """
         self.max_results = max_results
-        self.delay = delay
-        self.client = arxiv.Client()
+        self.delay = delay  # 1.0'dan 0.1'e düşürüldü
+        self.max_workers = max_workers
+        self.client = arxiv.Client(
+            page_size=1000,  # Daha büyük page size
+            delay_seconds=delay,  # ArXiv client'ın kendi rate limiting'i
+            num_retries=3
+        )
+        self._lock = threading.Lock()
     
-    def collect_papers_by_category(self, categories: List[str]) -> pd.DataFrame:
-        """
-        Belirtilen kategorilerdeki makaleleri toplar
+    def _collect_category_batch(self, category: str, target_count: int) -> List[dict]:
+        """Tek kategori için makale toplar - paralel işlem için"""
+        print(f"🔄 Kategori işleniyor: {category}")
         
-        Args:
-            categories: ArXiv kategori listesi (örn: ['cs.AI', 'cs.ML', 'physics.gen-ph'])
+        search = arxiv.Search(
+            query=f"cat:{category}",
+            max_results=target_count * 2,  # Fazladan topla, sonra filtrele
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+            sort_order=arxiv.SortOrder.Descending
+        )
         
-        Returns:
-            DataFrame: Toplanan makale verileri
-        """
-        all_papers = []
+        papers = []
+        count = 0
         
-        for category in categories:
-            print(f"Kategori işleniyor: {category}")
-            
-            # ArXiv sorgusu oluştur - daha kesin arama için primary category'yi hedefle
-            search = arxiv.Search(
-                query=f"cat:{category}",
-                max_results=self.max_results // len(categories),
-                sort_by=arxiv.SortCriterion.SubmittedDate,
-                sort_order=arxiv.SortOrder.Descending
-            )
-            
-            papers_in_category = []
-            
+        try:
             for paper in self.client.results(search):
+                if count >= target_count:
+                    break
+                    
                 paper_data = {
                     'id': paper.entry_id,
                     'title': paper.title,
@@ -60,44 +62,64 @@ class ArXivDataCollector:
                     'pdf_url': paper.pdf_url,
                     'doi': paper.doi
                 }
-                papers_in_category.append(paper_data)
+                papers.append(paper_data)
+                count += 1
                 
-                # Rate limiting
-                time.sleep(self.delay)
+                # Minimal delay
+                if self.delay > 0:
+                    time.sleep(self.delay)
+        
+        except Exception as e:
+            print(f"❌ {category} kategorisinde hata: {str(e)}")
             
-            all_papers.extend(papers_in_category)
-            print(f"{category} kategorisinden {len(papers_in_category)} makale toplandı")
+        print(f"✅ {category}: {len(papers)} makale toplandı")
+        return papers
+    
+    def collect_papers_by_category(self, categories: List[str]) -> pd.DataFrame:
+        """
+        Belirtilen kategorilerdeki makaleleri paralel olarak toplar - HIZLANDIRILMIŞ
+        """
+        print(f"🚀 {len(categories)} kategori paralel olarak işleniyor...")
+        
+        all_papers = []
+        target_per_category = max(10, self.max_results // len(categories))
+        
+        # Paralel işlem ile kategorileri topla
+        with ThreadPoolExecutor(max_workers=min(self.max_workers, len(categories))) as executor:
+            # Her kategori için task oluştur
+            future_to_category = {
+                executor.submit(self._collect_category_batch, category, target_per_category): category 
+                for category in categories
+            }
+            
+            # Sonuçları topla
+            for future in as_completed(future_to_category):
+                category = future_to_category[future]
+                try:
+                    papers = future.result(timeout=120)  # 2 dakika timeout
+                    all_papers.extend(papers)
+                except Exception as e:
+                    print(f"❌ {category} kategorisi başarısız: {str(e)}")
         
         df = pd.DataFrame(all_papers)
-        print(f"Toplam {len(df)} makale toplandı")
+        print(f"🎉 Toplam {len(df)} makale toplandı")
         return df
     
-    def collect_papers_by_primary_category(self, categories: List[str]) -> pd.DataFrame:
-        """
-        Belirtilen primary kategorilerdeki makaleleri toplar (daha kesin)
+    def _collect_primary_category_batch(self, category: str, target_count: int) -> List[dict]:
+        """Primary kategori için optimized batch collection"""
+        print(f"🔄 Primary kategori işleniyor: {category}")
         
-        Args:
-            categories: ArXiv kategori listesi
+        # Daha spesifik sorgu kullan
+        search = arxiv.Search(
+            query=f"cat:{category}",
+            max_results=target_count * 3,  # Primary olmayanlara karşı buffer
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+            sort_order=arxiv.SortOrder.Descending
+        )
         
-        Returns:
-            DataFrame: Toplanan makale verileri (sadece belirtilen primary kategorilerden)
-        """
-        all_papers = []
+        papers = []
         
-        for category in categories:
-            print(f"Primary kategori işleniyor: {category}")
-            
-            # Daha büyük sayıda makale topla, sonra filtrele
-            search = arxiv.Search(
-                query=f"cat:{category}",
-                max_results=min(1000, (self.max_results // len(categories)) * 3),  # 3x daha fazla topla
-                sort_by=arxiv.SortCriterion.SubmittedDate,
-                sort_order=arxiv.SortOrder.Descending
-            )
-            
-            papers_in_category = []
-            target_count = self.max_results // len(categories)
-            
+        try:
             for paper in self.client.results(search):
                 # Sadece primary category eşleşenleri al
                 if paper.primary_category == category:
@@ -113,20 +135,48 @@ class ArXivDataCollector:
                         'pdf_url': paper.pdf_url,
                         'doi': paper.doi
                     }
-                    papers_in_category.append(paper_data)
+                    papers.append(paper_data)
                     
                     # Hedef sayıya ulaştık mı?
-                    if len(papers_in_category) >= target_count:
+                    if len(papers) >= target_count:
                         break
                 
-                # Rate limiting
-                time.sleep(self.delay)
+                # Minimal delay
+                if self.delay > 0:
+                    time.sleep(self.delay)
+                    
+        except Exception as e:
+            print(f"❌ {category} primary kategorisinde hata: {str(e)}")
+        
+        print(f"✅ {category} primary: {len(papers)} makale toplandı")
+        return papers
+    
+    def collect_papers_by_primary_category(self, categories: List[str]) -> pd.DataFrame:
+        """
+        Primary kategorilerdeki makaleleri paralel olarak toplar - HIZLANDIRILMIŞ
+        """
+        print(f"🚀 {len(categories)} primary kategori paralel olarak işleniyor...")
+        
+        all_papers = []
+        target_per_category = max(10, self.max_results // len(categories))
+        
+        # Paralel işlem
+        with ThreadPoolExecutor(max_workers=min(self.max_workers, len(categories))) as executor:
+            future_to_category = {
+                executor.submit(self._collect_primary_category_batch, category, target_per_category): category 
+                for category in categories
+            }
             
-            all_papers.extend(papers_in_category)
-            print(f"{category} primary kategorisinden {len(papers_in_category)} makale toplandı")
+            for future in as_completed(future_to_category):
+                category = future_to_category[future]
+                try:
+                    papers = future.result(timeout=120)
+                    all_papers.extend(papers)
+                except Exception as e:
+                    print(f"❌ {category} primary kategorisi başarısız: {str(e)}")
         
         df = pd.DataFrame(all_papers)
-        print(f"Toplam {len(df)} makale toplandı (sadece primary kategoriler)")
+        print(f"🎉 Toplam {len(df)} primary kategori makale toplandı")
         return df
     
     def collect_papers_by_keywords(self, keywords: List[str]) -> pd.DataFrame:

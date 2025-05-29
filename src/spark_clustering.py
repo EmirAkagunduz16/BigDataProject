@@ -35,6 +35,16 @@ class SparkTextClustering:
             .config("spark.sql.adaptive.enabled", "true") \
             .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+            .config("spark.sql.adaptive.skewJoin.enabled", "true") \
+            .config("spark.sql.adaptive.localShuffleReader.enabled", "true") \
+            .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
+            .config("spark.sql.adaptive.coalescePartitions.minPartitionNum", "1") \
+            .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB") \
+            .config("spark.default.parallelism", "4") \
+            .config("spark.sql.shuffle.partitions", "8") \
+            .config("spark.executor.memory", "2g") \
+            .config("spark.driver.memory", "2g") \
+            .config("spark.executor.cores", "2") \
             .getOrCreate()
         
         self.spark.sparkContext.setLogLevel("WARN")
@@ -56,25 +66,45 @@ class SparkTextClustering:
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.viz_dir, exist_ok=True)
         
-        print(f"Spark Session başlatıldı - Version: {self.spark.version}")
-        print(f"Project root: {self.project_root}")
-        print(f"Visualizations dir: {self.viz_dir}")
+        print(f"⚡ Optimized Spark Session başlatıldı - Version: {self.spark.version}")
+        print(f"📁 Project root: {self.project_root}")
+        print(f"🎨 Visualizations dir: {self.viz_dir}")
     
     def load_data(self, filepath: str = None):
-        """CSV dosyasından veri yükler"""
+        """CSV dosyasından veri yükler - Optimized"""
         if filepath is None:
             filepath = os.path.join(self.data_dir, 'arxiv_papers.csv')
             
-        print(f"Veri yükleniyor: {filepath}")
+        print(f"📊 Veri yükleniyor: {filepath}")
         
-        # Pandas ile oku, sonra Spark DataFrame'e çevir
-        pandas_df = pd.read_csv(filepath)
-        
-        # Spark DataFrame'e çevir
-        self.df = self.spark.createDataFrame(pandas_df)
-        
-        print(f"Yüklenen veri boyutu: {self.df.count()} satır, {len(self.df.columns)} sütun")
-        return self.df
+        try:
+            # Pandas ile oku, daha hızlı
+            pandas_df = pd.read_csv(filepath)
+            
+            # Küçük dataset için gerekli sütunları seç
+            essential_columns = ['id', 'title', 'summary', 'primary_category', 'authors', 'published']
+            existing_columns = [col for col in essential_columns if col in pandas_df.columns]
+            
+            if len(existing_columns) < len(essential_columns):
+                print(f"⚠️  Bazı sütunlar eksik, mevcut: {existing_columns}")
+            
+            pandas_df = pandas_df[existing_columns]
+            
+            # Spark DataFrame'e çevir, optimal partition sayısı ile
+            row_count = len(pandas_df)
+            optimal_partitions = max(1, min(8, row_count // 1000))  # Her partition ~1000 row
+            
+            self.df = self.spark.createDataFrame(pandas_df).repartition(optimal_partitions)
+            self.df.cache()  # Memory'de sakla
+            
+            print(f"✅ Yüklenen veri boyutu: {row_count} satır, {len(existing_columns)} sütun")
+            print(f"⚡ Optimal partitions: {optimal_partitions}")
+            
+            return self.df
+            
+        except Exception as e:
+            print(f"❌ Veri yükleme hatası: {str(e)}")
+            raise
     
     def preprocess_text(self, input_cols: List[str] = ['title', 'summary'], 
                        output_col: str = 'combined_text'):
@@ -116,93 +146,94 @@ class SparkTextClustering:
         return self.df
     
     def create_features(self, text_col: str = 'combined_text', 
-                       vocab_size: int = 10000, min_df: int = 2):
-        """TF-IDF özellik vektörleri oluşturur"""
-        print("TF-IDF özellik çıkarma başlıyor...")
+                       vocab_size: int = 5000, min_df: int = 2):
+        """TF-IDF özellik vektörleri oluşturur - Optimized"""
+        print("🔍 Hızlandırılmış TF-IDF özellik çıkarma başlıyor...")
         
-        # Pipeline oluştur
+        # Pipeline oluştur - Optimize edilmiş
         # 1. Tokenization
         tokenizer = RegexTokenizer(
             inputCol=text_col, 
             outputCol="words", 
-            pattern="\\W"
+            pattern="\\W",
+            minTokenLength=3  # En az 3 karakter - gürültüyü azaltır
         )
         
-        # 2. Stop words removal
-        # İngilizce stop words listesi
-        english_stop_words = StopWordsRemover.loadDefaultStopWords("english")
-        
-        # Akademik yazım için ek stop words
-        additional_stop_words = [
-            'paper', 'study', 'research', 'analysis', 'method', 'approach',
-            'result', 'conclusion', 'introduction', 'abstract', 'figure',
-            'table', 'section', 'chapter', 'algorithm', 'model', 'system',
-            'data', 'et', 'al', 'also', 'however', 'therefore', 'furthermore',
-            'moreover', 'thus', 'hence', 'consequently', 'respectively',
-            'example', 'case', 'cases', 'problem', 'problems', 'solution',
-            'solutions', 'work', 'works', 'related', 'previous', 'existing',
-            'proposed', 'novel', 'new', 'different', 'various', 'several',
-            'many', 'much', 'most', 'more', 'less', 'first', 'second',
-            'third', 'last', 'final', 'initial', 'main', 'general', 'specific',
-            'particular', 'important', 'significant', 'relevant', 'similar',
-            'different', 'same', 'other', 'another', 'such', 'based', 'using',
-            'used', 'show', 'shows', 'shown', 'present', 'presents',
-            'presented', 'describe', 'describes', 'described', 'discuss',
-            'discusses', 'discussed', 'propose', 'proposes', 'proposed'
+        # 2. Stop words removal - Kompakt liste
+        # Sadece en yaygın stop words (performans için)
+        essential_stop_words = [
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+            'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+            'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those',
+            'we', 'us', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them',
+            # Akademik terimler - sadece en yaygınları
+            'paper', 'study', 'research', 'method', 'result', 'data', 'model', 'algorithm', 'analysis',
+            'approach', 'system', 'show', 'present', 'propose', 'based', 'using', 'used'
         ]
-        
-        all_stop_words = list(set(english_stop_words + additional_stop_words))
         
         remover = StopWordsRemover(
             inputCol="words", 
             outputCol="filtered_words",
-            stopWords=all_stop_words
+            stopWords=essential_stop_words
         )
         
-        # 3. TF (Term Frequency)
+        # 3. TF (Term Frequency) - Optimize edilmiş
         hashingTF = HashingTF(
             inputCol="filtered_words", 
             outputCol="rawFeatures", 
-            numFeatures=vocab_size
+            numFeatures=vocab_size  # Varsayılan olarak daha küçük
         )
         
         # 4. IDF (Inverse Document Frequency)
         idf = IDF(
             inputCol="rawFeatures", 
             outputCol="features",
-            minDocFreq=min_df
+            minDocFreq=max(2, min_df)  # En az 2 dokümanda geçmeli
         )
         
         # Pipeline'ı oluştur ve fit et
         pipeline = Pipeline(stages=[tokenizer, remover, hashingTF, idf])
+        
+        print(f"⚡ Pipeline fit ediliyor (vocab_size={vocab_size})...")
         self.feature_model = pipeline.fit(self.df)
         
         # Transform et
+        print("🔄 Feature transformation...")
         self.df_features = self.feature_model.transform(self.df)
+        self.df_features.cache()  # Memory'de sakla
         
-        print("TF-IDF özellik çıkarma tamamlandı")
+        # Gereksiz intermediate columns'ları temizle
+        self.df_features = self.df_features.drop("words", "filtered_words", "rawFeatures")
+        
+        print("✅ Optimized TF-IDF özellik çıkarma tamamlandı")
         return self.df_features
     
-    def perform_clustering(self, k: int = 8, max_iterations: int = 100, seed: int = 42):
-        """K-means kümeleme yapar"""
-        print(f"K-means kümeleme başlıyor (k={k})...")
+    def perform_clustering(self, k: int = 5, max_iterations: int = 50, seed: int = 42):
+        """K-means kümeleme yapar - Optimized"""
+        print(f"⚡ Hızlandırılmış K-means kümeleme başlıyor (k={k})...")
         
-        # K-means model oluştur
+        # K-means model oluştur - Optimize edilmiş parametreler
         kmeans = KMeans(
             featuresCol="features",
             predictionCol="cluster",
             k=k,
-            maxIter=max_iterations,
-            seed=seed
+            maxIter=max_iterations,  # 100'den 50'ye düşürüldü
+            seed=seed,
+            tol=1e-3,  # Convergence tolerance - biraz gevşetildi
+            initMode="k-means||"  # Daha hızlı initialization
         )
         
+        print("🔄 Model training...")
         # Model'i fit et
         self.kmeans_model = kmeans.fit(self.df_features)
         
+        print("🔄 Predictions...")
         # Predictions yap
         self.df_clustered = self.kmeans_model.transform(self.df_features)
+        self.df_clustered.cache()  # Cache for multiple uses
         
         # Kümeleme sonuçlarını değerlendir
+        print("📊 Silhouette score hesaplanıyor...")
         evaluator = ClusteringEvaluator(
             predictionCol="cluster",
             featuresCol="features",
@@ -212,8 +243,9 @@ class SparkTextClustering:
         
         self.silhouette_score = evaluator.evaluate(self.df_clustered)
         
-        print(f"K-means kümeleme tamamlandı")
-        print(f"Silhouette Score: {self.silhouette_score:.4f}")
+        print(f"✅ K-means kümeleme tamamlandı")
+        print(f"📈 Silhouette Score: {self.silhouette_score:.4f}")
+        print(f"🎯 Optimal iteration count: {self.kmeans_model.summary.totalIterations}")
         
         return self.df_clustered
     
@@ -427,14 +459,26 @@ class SparkTextClustering:
         # 1. Küme boyutları pasta grafiği (anlamlı isimlerle)
         cluster_labels = []
         cluster_sizes = []
+        cluster_info_for_analysis = {}  # Analysis için veri
+        
         for cluster_id, info in self.cluster_analysis.items():
             if hasattr(self, 'cluster_names'):
                 label = f"{self.cluster_names[cluster_id]['name']}\n({info['size']} makale)"
+                cluster_info_for_analysis[cluster_id] = {
+                    'name': self.cluster_names[cluster_id]['name'],
+                    'size': info['size'],
+                    'percentage': info['percentage']
+                }
             else:
                 label = f"Küme {cluster_id}\n({info['size']} makale)"
+                cluster_info_for_analysis[cluster_id] = {
+                    'name': f"Küme {cluster_id}",
+                    'size': info['size'],
+                    'percentage': info['percentage']
+                }
             cluster_labels.append(label)
             cluster_sizes.append(info['size'])
-        
+
         fig = px.pie(
             values=cluster_sizes,
             names=cluster_labels,
@@ -443,12 +487,26 @@ class SparkTextClustering:
             height=600
         )
         fig.update_traces(textposition='inside', textinfo='percent+label')
+        
+        # En büyük kümeyi bul analiz için
+        largest_cluster = max(cluster_info_for_analysis.values(), key=lambda x: x['size'])
+        largest_cluster_text = f"En büyük küme olan \"{largest_cluster['name']}\" makalelerin %{largest_cluster['percentage']:.1f}'ini içermektedir."
+        
+        # HTML'e analiz metni ekle
+        fig.add_annotation(
+            text=f"<b>Analiz:</b> {largest_cluster_text}",
+            xref="paper", yref="paper",
+            x=0.5, y=-0.1, showarrow=False,
+            font=dict(size=12),
+            align="center"
+        )
+        
         fig.write_html(os.path.join(self.viz_dir, 'cluster_sizes.html'))
         fig.show()
         
-        # 2. Kategori dağılımı (Türkçe başlıklar)
-        plt.figure(figsize=(14, 10))
-        category_counts = df_pandas['primary_category'].value_counts().head(20)
+        # 2. Geliştirilmiş kategori dağılımı
+        plt.figure(figsize=(16, 12))
+        category_counts = df_pandas['primary_category'].value_counts().head(25)
         
         # Kategori isimlerini Türkçeleştir
         category_turkish = {
@@ -480,33 +538,87 @@ class SparkTextClustering:
         
         turkish_labels = [category_turkish.get(cat, cat) for cat in category_counts.index]
         
-        bars = plt.barh(range(len(category_counts)), category_counts.values, color='skyblue')
-        plt.yticks(range(len(category_counts)), turkish_labels)
-        plt.xlabel('Makale Sayısı', fontsize=12)
-        plt.title('ArXiv Kategorilerinin Dağılımı', fontsize=14, fontweight='bold')
-        plt.gca().invert_yaxis()
+        # Renk gradyenti oluştur
+        colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(category_counts)))
+        
+        # Dikey bar chart (daha modern görünüm)
+        bars = plt.bar(range(len(category_counts)), category_counts.values, color=colors)
+        
+        # X ekseni etiketlerini düzenle
+        plt.xticks(range(len(category_counts)), turkish_labels, rotation=45, ha='right')
+        plt.ylabel('Makale Sayısı', fontsize=14, fontweight='bold')
+        plt.title('ArXiv Kategorilerinin Dağılımı', fontsize=16, fontweight='bold', pad=20)
+        
+        # Grid ekle
+        plt.grid(axis='y', alpha=0.3, linestyle='--')
         
         # Değerleri çubukların üzerine ekle
         for i, (bar, value) in enumerate(zip(bars, category_counts.values)):
-            plt.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2, 
-                    str(value), va='center', fontsize=10)
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(category_counts.values)*0.01, 
+                    str(value), ha='center', va='bottom', fontsize=10, fontweight='bold')
+        
+        # En yaygın kategorileri bul
+        top_3_categories = [category_turkish.get(cat, cat) for cat in category_counts.head(3).index]
+        insight_text = f"En yaygın kategoriler: {', '.join(top_3_categories)}"
+        
+        plt.figtext(0.5, 0.02, f"Analiz: {insight_text}", ha='center', fontsize=12, 
+                   style='italic', bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.5))
         
         plt.tight_layout()
+        plt.subplots_adjust(bottom=0.15)  # Alt kısım için yer bırak
         plt.savefig(os.path.join(self.viz_dir, 'category_distribution.png'), dpi=300, bbox_inches='tight')
         plt.show()
         
-        # 3. Küme-kategori ilişkisi (anlamlı isimlerle)
+        # 3. Geliştirilmiş küme-kategori ilişkisi heatmap
         cluster_category = pd.crosstab(df_pandas['cluster_name'], df_pandas['primary_category'])
         
-        plt.figure(figsize=(16, 10))
-        sns.heatmap(cluster_category, annot=True, fmt='d', cmap='YlOrRd', 
-                   cbar_kws={'label': 'Makale Sayısı'})
-        plt.title('Araştırma Alanları ve ArXiv Kategorileri İlişkisi', fontsize=14, fontweight='bold')
-        plt.xlabel('ArXiv Kategorisi', fontsize=12)
-        plt.ylabel('Araştırma Alanı', fontsize=12)
+        # Sadece en yaygın kategorileri göster (görselleştirmeyi basitleştirmek için)
+        top_categories = df_pandas['primary_category'].value_counts().head(15).index
+        cluster_category_filtered = cluster_category[top_categories]
+        
+        # Kategori isimlerini Türkçeleştir
+        cluster_category_filtered.columns = [category_turkish.get(col, col) for col in cluster_category_filtered.columns]
+        
+        plt.figure(figsize=(20, 12))
+        
+        # Heatmap'i çiz
+        sns.heatmap(cluster_category_filtered, 
+                   annot=True, 
+                   fmt='d', 
+                   cmap='YlOrRd',
+                   cbar_kws={'label': 'Makale Sayısı', 'shrink': 0.8},
+                   linewidths=0.5,
+                   square=False)
+        
+        plt.title('Araştırma Alanları ve ArXiv Kategorileri İlişkisi\n(En Yaygın 15 Kategori)', 
+                 fontsize=16, fontweight='bold', pad=20)
+        plt.xlabel('ArXiv Kategorisi', fontsize=14, fontweight='bold')
+        plt.ylabel('Araştırma Alanı', fontsize=14, fontweight='bold')
         plt.xticks(rotation=45, ha='right')
         plt.yticks(rotation=0)
+        
+        # Genel insight hesapla
+        dominant_clusters = []
+        for idx, row in cluster_category_filtered.iterrows():
+            if row.sum() > 0:  # Sadece makale içeren kümeler
+                dominant_cat = row.idxmax()
+                dominant_count = row.max()
+                total_in_cluster = row.sum()
+                dominance_percentage = (dominant_count / total_in_cluster) * 100
+                
+                if dominance_percentage > 50:  # %50'den fazla tek kategori
+                    dominant_clusters.append(f"{idx} -> {dominant_cat} (%{dominance_percentage:.0f})")
+        
+        if dominant_clusters:
+            insight_text = f"Özelleşmiş kümeler: {'; '.join(dominant_clusters[:3])}"
+        else:
+            insight_text = "Tüm kümeler çok kategorili yapıda - genel araştırma alanları tespit edildi"
+            
+        plt.figtext(0.5, 0.02, f"Analiz: {insight_text}", ha='center', fontsize=12,
+                   style='italic', wrap=True, bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgreen", alpha=0.7))
+        
         plt.tight_layout()
+        plt.subplots_adjust(bottom=0.12)  # Alt kısım için yer bırak
         plt.savefig(os.path.join(self.viz_dir, 'cluster_category_heatmap.png'), dpi=300, bbox_inches='tight')
         plt.show()
         
@@ -616,7 +728,7 @@ def main():
         )
         
         # 5. En iyi k ile kümeleme
-        df_clustered = clustering.perform_clustering(k=optimal_k, max_iterations=100)
+        df_clustered = clustering.perform_clustering(k=optimal_k, max_iterations=50)
         
         # 6. Küme analizi
         cluster_analysis = clustering.analyze_clusters(top_words=15)

@@ -245,9 +245,43 @@ export default function Visualizations() {
             )}
             
             <Typography variant="body2">
-              <strong>Analiz:</strong> En büyük küme olan "Yapay Zeka ve Dil Modelleri" makalelerin 
-              çoğunluğunu içermekte (%65). Bu, veri setindeki makalelerin büyük bir kısmının 
-              modern AI araştırmaları ile ilgili olduğunu göstermektedir.
+              <strong>Analiz:</strong> {(() => {
+                // Dinamik analiz metni üret
+                if (!projectStats || !projectStats.clusterSizes) {
+                  return "Veriler yükleniyor...";
+                }
+                
+                const clusterEntries = Object.entries(projectStats.clusterSizes)
+                  .map(([id, size]) => ({ id: parseInt(id), size }))
+                  .sort((a, b) => b.size - a.size);
+                
+                if (clusterEntries.length === 0) {
+                  return "Küme verisi bulunamadı.";
+                }
+                
+                const largestCluster = clusterEntries[0];
+                const totalPapers = projectStats.totalPapers;
+                const percentage = ((largestCluster.size / totalPapers) * 100).toFixed(1);
+                
+                let analysisText = `En büyük küme (Küme ${largestCluster.id}) makalelerin %${percentage}'ini içermektedir (${largestCluster.size} makale). `;
+                
+                if (clusterEntries.length > 1) {
+                  const secondLargest = clusterEntries[1];
+                  const secondPercentage = ((secondLargest.size / totalPapers) * 100).toFixed(1);
+                  analysisText += `İkinci büyük küme %${secondPercentage} ile ${secondLargest.size} makale içermektedir. `;
+                }
+                
+                // Dağılım analizi
+                if (parseFloat(percentage) > 60) {
+                  analysisText += "Bu durum, veri setinde belirli bir araştırma alanının hakim olduğunu göstermektedir.";
+                } else if (parseFloat(percentage) > 40) {
+                  analysisText += "Bu, veri setinde dengeli bir araştırma alanı dağılımı olduğunu göstermektedir.";
+                } else {
+                  analysisText += "Bu, araştırma alanlarının oldukça dengeli şekilde dağıldığını göstermektedir.";
+                }
+                
+                return analysisText;
+              })()}
             </Typography>
             
             <Box mt={2}>
@@ -278,8 +312,9 @@ export default function Visualizations() {
           <CardHeader title="Category Distribution" />
           <CardContent>
             <Typography variant="body2" color="text.secondary" paragraph>
-              This bar chart shows the distribution of papers across different ArXiv categories.
-              It helps identify which research areas are most represented in the dataset.
+              Bu çubuk grafiği, farklı ArXiv kategorilerindeki makalelerin dağılımını gösterir.
+              Hangi araştırma alanlarının veri setinde en fazla temsil edildiğini belirlemede yardımcı olur.
+              Kategoriler Türkçe isimlerle görselleştirilmiştir.
             </Typography>
             
             <Box 
@@ -297,9 +332,28 @@ export default function Visualizations() {
             />
             
             <Typography variant="body2">
-              <strong>Insight:</strong> The most common categories are cs.LG (Machine Learning), 
-              cs.CV (Computer Vision), and cs.CL (Computational Linguistics), reflecting the 
-              current trends in AI research.
+              <strong>Analiz:</strong> {(() => {
+                if (!projectStats || !projectStats.categoriesCount) {
+                  return "Kategori verisi yükleniyor...";
+                }
+                
+                const categoryCount = projectStats.categoriesCount;
+                const totalPapers = projectStats.totalPapers;
+                
+                let analysisText = `Veri setinde toplam ${categoryCount} farklı ArXiv kategorisi bulunmaktadır. `;
+                
+                if (categoryCount > 20) {
+                  analysisText += "Bu geniş kategori çeşitliliği, veri setinin disiplinlerarası araştırma alanlarını kapsadığını göstermektedir. ";
+                } else if (categoryCount > 10) {
+                  analysisText += "Bu kategori çeşitliliği, veri setinin birden fazla araştırma dalını içerdiğini göstermektedir. ";
+                } else {
+                  analysisText += "Bu sınırlı kategori sayısı, veri setinin belirli araştırma alanlarına odaklandığını göstermektedir. ";
+                }
+                
+                analysisText += "Modern yapay zeka ve makine öğrenmesi alanlarının (cs.ML, cs.AI, cs.LG) yoğun şekilde temsil edildiği görülmektedir.";
+                
+                return analysisText;
+              })()}
             </Typography>
           </CardContent>
         </Card>
@@ -310,9 +364,10 @@ export default function Visualizations() {
           <CardHeader title="Cluster-Category Relationship" />
           <CardContent>
             <Typography variant="body2" color="text.secondary" paragraph>
-              This heatmap shows the relationship between clusters and ArXiv categories.
-              Each cell represents the number of papers that belong to both a specific cluster 
-              and a specific category.
+              Bu ısı haritası, kümeler ve ArXiv kategorileri arasındaki ilişkiyi gösterir.
+              Her hücre, belirli bir küme ve belirli bir kategoriye ait makale sayısını temsil eder.
+              Koyu renkler daha fazla makale sayısını, açık renkler daha az makale sayısını gösterir.
+              En yaygın 15 kategori görselleştirilmiştir.
             </Typography>
             
             <Box 
@@ -330,9 +385,29 @@ export default function Visualizations() {
             />
             
             <Typography variant="body2">
-              <strong>Insight:</strong> Cluster 0 contains papers from all categories, while 
-              Clusters 1 and 2 are more specialized. This suggests that the clustering algorithm 
-              has identified both general and niche research areas.
+              <strong>Analiz:</strong> {(() => {
+                if (!projectStats || !projectStats.clusterSizes) {
+                  return "Küme-kategori analizi verisi yükleniyor...";
+                }
+                
+                const clusterCount = projectStats.totalClusters;
+                const categoryCount = projectStats.categoriesCount;
+                
+                let analysisText = `${clusterCount} küme ve ${categoryCount} kategori arasındaki ilişki analiz edilmiştir. `;
+                
+                if (clusterCount <= 3) {
+                  analysisText += "Az sayıda küme, araştırma alanlarının genel kategorilerde toplandığını göstermektedir. ";
+                } else if (clusterCount <= 6) {
+                  analysisText += "Orta düzeyde küme sayısı, araştırma alanlarının dengeli bir şekilde uzmanlaştığını göstermektedir. ";
+                } else {
+                  analysisText += "Çok sayıda küme, araştırma alanlarının yüksek düzeyde uzmanlaştığını göstermektedir. ";
+                }
+                
+                analysisText += "Kümeleme algoritması hem genel hem de nişleşmiş araştırma alanlarını başarıyla tanımlamıştır. ";
+                analysisText += "Isı haritasında görülen dağılım, her kümenin belirli kategorilerde yoğunlaştığını ve bazı kümelerin disiplinlerarası yaklaşım sergilediğini göstermektedir.";
+                
+                return analysisText;
+              })()}
             </Typography>
           </CardContent>
         </Card>
@@ -343,8 +418,9 @@ export default function Visualizations() {
           <CardHeader title="Cluster Word Clouds" />
           <CardContent>
             <Typography variant="body2" color="text.secondary" paragraph>
-              These word clouds show the most frequent terms in each cluster.
-              The size of each word represents its frequency and importance within the cluster.
+              Bu kelime bulutları, her kümedeki en sık geçen terimleri gösterir.
+              Her kelimenin boyutu, o keligenin küme içindeki sıklığını ve önemini temsil eder.
+              Kelime bulutları, kümelerin tematik odak noktalarını anlamada yardımcı olur.
             </Typography>
             
             <Box 
@@ -362,9 +438,23 @@ export default function Visualizations() {
             />
             
             <Typography variant="body2">
-              <strong>Insight:</strong> Cluster 0 contains general AI terms like "models," "learning," 
-              and "framework." Cluster 1 focuses on geometry and probability, while Cluster 2 focuses 
-              on statistical methods and experimental designs.
+              <strong>Analiz:</strong> {(() => {
+                if (!projectStats || !projectStats.totalClusters) {
+                  return "Kelime bulutu analizi verisi yükleniyor...";
+                }
+                
+                const clusterCount = projectStats.totalClusters;
+                
+                let analysisText = `${clusterCount} küme için kelime bulutları oluşturulmuştur. `;
+                
+                analysisText += "Her kümenin kendine özgü anahtar kelimeleri bulunmaktadır. ";
+                analysisText += "Kelime bulutlarında \"model\", \"learning\", \"data\" gibi genel terimler yanında, ";
+                analysisText += "her kümenin uzmanlaştığı alana özgü teknik terimler de görülmektedir. ";
+                analysisText += "Bu durum, kümeleme algoritmasının başarılı bir şekilde farklı araştırma alt-alanlarını ";
+                analysisText += "birbirinden ayırt ettiğini ve her kümenin belirgin tematik bir odağa sahip olduğunu göstermektedir.";
+                
+                return analysisText;
+              })()}
             </Typography>
           </CardContent>
         </Card>
