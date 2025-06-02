@@ -48,10 +48,11 @@ class ArXivDataCollector:
             'econ.EM', 'econ.TH'
         }
     
-    def _update_progress(self, message: str):
+    def _update_progress(self, message: str, percentage: int = None):
         """İlerleme durumunu günceller"""
         if self.progress_callback:
-            percentage = min(90, int((self._collected_count / self._total_target) * 70) + 30) if self._total_target > 0 else 30
+            if percentage is None:
+                percentage = min(90, int((self._collected_count / self._total_target) * 70) + 30) if self._total_target > 0 else 30
             self.progress_callback(message, percentage)
     
     def _collect_category_batch(self, category: str, target_count: int) -> List[dict]:
